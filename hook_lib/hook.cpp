@@ -1,6 +1,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <dlfcn.h>
+#include "shared_buffer.h"
+
+SharedBuffer buffer {};
 
 // Define a function pointer for the original functions
 void* (*malloc_real)(size_t) = nullptr;
@@ -8,16 +11,16 @@ void (*free_real)(void*) = nullptr;
 
 // The hook function for malloc
 extern "C" void* malloc_hook(size_t size) {
-    std::cout << "malloc hooked: " << size << " bytes" << std::endl;
-    return malloc_real(size);  // Call the original malloc
-}
+    void* const ptr {malloc_real(size)};  // Call the original malloc
+    
+    Allocation const alloc {size, 1.0};
+    buffer.write(alloc);
 
-extern "C" void* malloc_hook_empty(size_t size) {
-    return malloc_real(size);  // Call the original malloc
+    return ptr;
 }
 
 extern "C" void free_hook(void* ptr) {
-    std::cout << "free hooked: " << ptr << std::endl;
+    return free_real(ptr);
 }
 
 // A function to set the original malloc symbol
