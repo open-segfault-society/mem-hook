@@ -39,7 +39,7 @@ def get_plt_offset(pid: int, function: str) -> int:
     obj_dump_match = re.search(rf"#\s(\d+)\s<{function}", obj_dump)
 
     if not obj_dump_match:
-        raise ValueError("Could not find malloc entry in PLT")
+        raise ValueError(f"Could not find {function} entry in PLT")
 
     plt_offset = int(obj_dump_match.group(1), 16)
     print(f"Found PLT offset at {hex(plt_offset)}")
@@ -144,4 +144,3 @@ if __name__ == "__main__":
 
     pid = int(sys.argv[1])
     hook(pid)
-
