@@ -62,3 +62,4 @@ buffer_sizes_in_writes = [
     for i in range(0, len(buffer_write_size), 2)
 ]
 pid = args.pid
+print(pid)

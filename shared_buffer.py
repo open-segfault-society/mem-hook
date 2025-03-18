@@ -29,6 +29,17 @@ class Allocation:
         return f"Address: {hex(self.pointer)}, Size: {self.size}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
 
 
+class Memtracker:
+    def __init__(self):
+        self.allocations = {}
+        self.total_allocation_size = 0
+        self.total_allocations = 0
+
+    def add_allocation(self, allocation: Allocation): ...
+
+    def remove_allocation(self, pointer: int): ...
+
+
 class SharedBuffer:
     MALLOC_MOUNT: str = "/dev/shm/mem_hook_alloc"
     FREE_MOUNT: str = "/dev/shm/mem_hook_free"
@@ -130,7 +141,7 @@ class SharedBuffer:
         malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
 
         while malloc_head != malloc_tail:
-            print(self.read_allocation(malloc_head))
+            allocation = self.read_allocation(malloc_head)
             malloc_head = (malloc_head + 1) % 32
 
         self.malloc_mem[0:4] = malloc_head.to_bytes(4, byteorder="little")
@@ -143,7 +154,7 @@ class SharedBuffer:
         free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
 
         while free_head != free_tail:
-            print(hex(self.read_free(free_head)))
+            freed_address = self.read_free(free_head)
             free_head = (free_head + 1) % 32
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")

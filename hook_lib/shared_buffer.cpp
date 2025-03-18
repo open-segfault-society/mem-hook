@@ -82,9 +82,6 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Allocation const &alloc) {
-  // TODO: Check if buffer is full?
-  // std::cout << sizeof(struct Allocation) << std::endl;
-  // std::cout << "Tail: " << *tail << ", Head: " << *head << std::endl;
   std::memcpy(malloc_data_start + (*malloc_tail * sizeof(struct Allocation)),
               &alloc, sizeof(alloc));
   (*malloc_tail) =

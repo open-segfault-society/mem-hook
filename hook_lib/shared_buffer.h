@@ -27,7 +27,7 @@ public:
 private:
   char constexpr static ALLOC_MOUNT[] = "/mem_hook_alloc";
   char constexpr static FREE_MOUNT[] = "/mem_hook_free";
-  uint32_t static const NUM_ALLOCATIONS{32};
+  uint32_t static const NUM_ALLOCATIONS{1000};
   uint32_t static const HEAD_SIZE{8};
   uint32_t static const MALLOC_DATA_SIZE{NUM_ALLOCATIONS *
                                          sizeof(struct Allocation)};
