@@ -27,9 +27,10 @@ extern "C" void *malloc_hook(uint32_t size) {
 
   // Get call stack address and number of addresses
   // TODO: test overhead difference of backtrace and backtrace_symbols
-  // uint32_t backtrace_size = backtrace(backtrace_buffer, BUFFER_SIZE);
-  // uint32_t backtrace_size = backtrace_symbols(backtrace_buffer, BUFFER_SIZE);
-  Allocation alloc{ptr, size, now_ns, backtrace_size, backtrace_buffer};
+  uint32_t backtrace_size = backtrace(backtrace_buffer, BUFFER_SIZE);
+  // backtrace_symbols(backtrace_buffer, BUFFER_SIZE);
+
+  Allocation alloc{ptr, size, 0, backtrace_size, backtrace_buffer};
 
   buffer.write(alloc);
 

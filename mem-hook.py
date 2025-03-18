@@ -11,17 +11,16 @@ if __name__ == "__main__":
         exit(1)
 
     memtracker = shared_buffer.Memtracker()
-    buffer = shared_buffer.SharedBuffer()
     hook_manager = HookManager(cli.pid)
 
     # Register hooks-
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
 
-    with hook_manager.inject() as hd:
+    with hook_manager.inject() as hd, shared_buffer.SharedBuffer() as shared_buffer:
         try:
             print("\nPress CTRL+C to detach...\n")
             while True:
-                buffer.read()
+                shared_buffer.read(memtracker)
         except KeyboardInterrupt:
             pass

@@ -26,7 +26,7 @@ parser.add_argument(
     required=True,
     help="Specify the process id of the process to profile",
 )
-parser.add_argument(
+parsr.add_argument(
     "--filter-size-range",
     default=None,
     help="Specify what ranges to probe, will ignore all allocations outside the specified range(s). \

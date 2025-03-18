@@ -1,6 +1,6 @@
 import os
 import mmap
-from time import sleep
+import time
 
 # Constants
 HEAD_SIZE: int = 8
@@ -35,9 +35,23 @@ class Memtracker:
         self.total_allocation_size = 0
         self.total_allocations = 0
 
-    def add_allocation(self, allocation: Allocation): ...
+    def add_allocation(self, allocation: Allocation):
+        # TODO: nullptr? Could they be some edge case?
+        self.allocations[allocation.pointer] = allocation
+        self.total_allocation_size += allocation.size
+        self.total_allocations += 1
 
-    def remove_allocation(self, pointer: int): ...
+    def remove_allocation(self, pointer: int):
+        try:
+            allocation = self.allocations[pointer]
+        except KeyError:
+            # Allocation was probably made before hook got injected
+            # or we missed it
+            return
+
+        self.total_allocation_size -= allocation.size
+        self.total_allocations -= 1
+        del self.allocations[pointer]
 
 
 class SharedBuffer:
@@ -115,16 +129,17 @@ class SharedBuffer:
         size = int.from_bytes(
             self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
         )
-        time = int.from_bytes(
-            self.malloc_mem[start_address + 12 : start_address + 16], byteorder="little"
-        )
+        # time = int.from_bytes(
+        #     self.malloc_mem[start_address + 12 : start_address + 16], byteorder="little"
+        # )
+        current_time = time.time()
         backtrace_size = int.from_bytes(
             self.malloc_mem[start_address + 16 : start_address + 20], byteorder="little"
         )
 
         backtraces = self.read_backtraces(start_address + 24, backtrace_size)
 
-        return Allocation(pointer, size, time, backtrace_size, backtraces)
+        return Allocation(pointer, size, int(current_time), backtrace_size, backtraces)
 
     def read_free(self, head: int) -> int:
         # assumes 8 bytes pointers aka 64-bit system
@@ -133,7 +148,7 @@ class SharedBuffer:
             self.free_mem[free_address : free_address + 8], byteorder="little"
         )
 
-    def read(self):
+    def read(self, memtracker: Memtracker):
         # =================
         #       MALLOC
         # =================
@@ -142,6 +157,7 @@ class SharedBuffer:
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
+            memtracker.add_allocation(allocation)
             malloc_head = (malloc_head + 1) % 32
 
         self.malloc_mem[0:4] = malloc_head.to_bytes(4, byteorder="little")
@@ -155,6 +171,7 @@ class SharedBuffer:
 
         while free_head != free_tail:
             freed_address = self.read_free(free_head)
+            memtracker.remove_allocation(freed_address)
             free_head = (free_head + 1) % 32
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
