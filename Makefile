@@ -21,4 +21,3 @@ clean:
 	rm -f $(OBJ) $(LIB_NAME)
 
 .PHONY: all clean
-
