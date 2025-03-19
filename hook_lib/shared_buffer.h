@@ -17,12 +17,22 @@ struct Allocation {
              uint32_t backtrace_size, void *(&buffer)[BUFFER_SIZE]);
 };
 
+struct Free {
+  void *address;                           // Address returned by malloc
+  uint32_t time;                           // Time of allocation
+  uint32_t backtrace_size;                 // Backtrace size of allocation
+  std::array<void *, 20> backtrace_buffer; // Actual backtrace
+
+  Free(void *free_ptr, uint32_t time, uint32_t backtrace_size,
+       void *(&buffer)[BUFFER_SIZE]);
+};
+
 class SharedBuffer {
 public:
   SharedBuffer();
   ~SharedBuffer();
   void write(Allocation const &alloc); // Malloc
-  void write(void *);                  // Free
+  void write(Free const &free);        // Free
 
 private:
   char constexpr static ALLOC_MOUNT[] = "/mem_hook_alloc";
@@ -33,7 +43,7 @@ private:
                                          sizeof(struct Allocation)};
   uint32_t static const MALLOC_BUFF_SIZE{HEAD_SIZE + MALLOC_DATA_SIZE};
 
-  uint32_t static const FREE_DATA_SIZE{NUM_ALLOCATIONS * sizeof(void *)};
+  uint32_t static const FREE_DATA_SIZE{NUM_ALLOCATIONS * sizeof(struct Free)};
   uint32_t static const FREE_BUFF_SIZE{HEAD_SIZE + FREE_DATA_SIZE};
 
   // Shared buffer

@@ -7,6 +7,7 @@ HEAD_SIZE: int = 8
 ALLOCATION_SIZE: int = (
     24 + 8 * 20
 )  # Accounts for inner padding, currently no padding between allocations
+FREE_SIZE: int = 8 + 4 + 4 + 8 * 20
 
 
 class Allocation:
@@ -26,7 +27,25 @@ class Allocation:
 
     def __str__(self):
         addresses = [hex(value) for value in self.backtraces]
-        return f"Address: {hex(self.pointer)}, Size: {self.size}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
+        return f"ALLOCTATION: Address: {hex(self.pointer)}, Size: {self.size}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
+
+
+class Free:
+    def __init__(
+        self,
+        pointer: int,
+        time: int,
+        backtrace_size: int,
+        backtraces: list[int],
+    ):
+        self.pointer = pointer
+        self.time = time
+        self.backtrace_size = backtrace_size
+        self.backtraces = backtraces
+
+    def __str__(self):
+        addresses = [hex(value) for value in self.backtraces]
+        return f"FREE: Address: {hex(self.pointer)}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
 
 
 class Memtracker:
@@ -99,17 +118,22 @@ class SharedBuffer:
         self.free_mem.close()
         os.close(self.free_fd)
 
-    def read_backtraces(self, start_address, backtrace_size) -> list[int]:
+    def read_backtraces(self, start_address, backtrace_size, malloc=True) -> list[int]:
         if backtrace_size == 0:
             return []
 
         backtraces = []
         read_pointers = 0
 
+        if malloc:
+            mem = self.malloc_mem
+        else:
+            mem = self.free_mem
+
         while read_pointers != backtrace_size:
             backtraces.append(
                 int.from_bytes(
-                    self.malloc_mem[
+                    mem[
                         start_address
                         + read_pointers * 8 : start_address
                         + (read_pointers + 1) * 8
@@ -121,7 +145,7 @@ class SharedBuffer:
 
         return backtraces
 
-    def read_allocation(self, head: int):
+    def read_allocation(self, head: int) -> Allocation:
         start_address = head * ALLOCATION_SIZE + HEAD_SIZE
         pointer = int.from_bytes(
             self.malloc_mem[start_address : start_address + 8], byteorder="little"
@@ -141,12 +165,25 @@ class SharedBuffer:
 
         return Allocation(pointer, size, int(current_time), backtrace_size, backtraces)
 
-    def read_free(self, head: int) -> int:
+    def read_free(self, head: int) -> Free:
         # assumes 8 bytes pointers aka 64-bit system
-        free_address = head * 8 + HEAD_SIZE
-        return int.from_bytes(
-            self.free_mem[free_address : free_address + 8], byteorder="little"
+        start_address = head * FREE_SIZE + HEAD_SIZE
+        pointer = int.from_bytes(
+            self.free_mem[start_address : start_address + 8], byteorder="little"
         )
+        # time = int.from_bytes(
+        #     self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
+        # )
+        current_time = time.time()
+        backtrace_size = int.from_bytes(
+            self.free_mem[start_address + 12 : start_address + 16], byteorder="little"
+        )
+
+        backtraces = self.read_backtraces(
+            start_address + 16, backtrace_size, malloc=False
+        )
+
+        return Free(pointer, int(current_time), backtrace_size, backtraces)
 
     def read(self, memtracker: Memtracker):
         # =================
@@ -157,6 +194,7 @@ class SharedBuffer:
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
+            print(allocation)
             memtracker.add_allocation(allocation)
             malloc_head = (malloc_head + 1) % 32
 
@@ -170,8 +208,9 @@ class SharedBuffer:
         free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
 
         while free_head != free_tail:
-            freed_address = self.read_free(free_head)
-            memtracker.remove_allocation(freed_address)
+            free = self.read_free(free_head)
+            print(free)
+            memtracker.remove_allocation(free.pointer)
             free_head = (free_head + 1) % 32
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")

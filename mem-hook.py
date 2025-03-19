@@ -10,6 +10,7 @@ if __name__ == "__main__":
         print("The program must be run as root")
         exit(1)
 
+    print(f"pid: {cli.pid}")
     memtracker = shared_buffer.Memtracker()
     hook_manager = HookManager(cli.pid)
 
