@@ -13,22 +13,25 @@ void *(*malloc_real)(size_t) = nullptr;
 void (*free_real)(void *) = nullptr;
 
 // Backtrace related values
-void *backtrace_buffer[BUFFER_SIZE];
+void *malloc_backtrace_buffer[BUFFER_SIZE];
+void *free_backtrace_buffer[BUFFER_SIZE];
 
 // The hook function for malloc
 extern "C" void *malloc_hook(uint32_t size) {
   void *const ptr{malloc_real(size)}; // Call the original malloc
 
   // Get allocation time
-  auto now = std::chrono::steady_clock::now();
-  uint32_t now_ns = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now.time_since_epoch())
-                        .count();
+  // auto now = std::chrono::steady_clock::now();
+  // uint32_t now_ns = std::chrono::duration_cast<std::chrono::milliseconds>(
+  //                       now.time_since_epoch())
+  // .count();
 
   // Get call stack address and number of addresses
   // TODO: test overhead difference of backtrace and backtrace_symbols
-  uint32_t backtrace_size = backtrace(backtrace_buffer, BUFFER_SIZE);
-  Allocation alloc{ptr, size, now_ns, backtrace_size, backtrace_buffer};
+  uint32_t backtrace_size = backtrace(malloc_backtrace_buffer, BUFFER_SIZE);
+  // backtrace_symbols(backtrace_buffer, BUFFER_SIZE);
+
+  Allocation alloc{ptr, size, 0, backtrace_size, malloc_backtrace_buffer};
 
   buffer.write(alloc);
 
@@ -36,7 +39,15 @@ extern "C" void *malloc_hook(uint32_t size) {
 }
 
 extern "C" void free_hook(void *ptr) {
-  buffer.write(ptr);
+  uint32_t backtrace_size = backtrace(free_backtrace_buffer, BUFFER_SIZE);
+
+  // Get allocation time
+  // auto now = std::chrono::steady_clock::now();
+  // uint32_t now_ns = std::chrono::duration_cast<std::chrono::milliseconds>(
+  //                       now.time_since_epoch())
+  // .count();
+  Free free{ptr, 0, backtrace_size, free_backtrace_buffer};
+  buffer.write(free);
   return free_real(ptr);
 }
 

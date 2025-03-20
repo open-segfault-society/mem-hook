@@ -8,12 +8,20 @@
 
 // ===================
 //     Allocation
+//         &
+//       Free
 // ===================
 
 Allocation::Allocation(void *alloc_address, uint32_t size, uint32_t time,
                        uint32_t backtrace_size, void *(&buffer)[20])
     : address{alloc_address}, size{size}, time{time},
       backtrace_size{backtrace_size} {
+  std::copy(std::begin(buffer), std::end(buffer), backtrace_buffer.begin());
+}
+
+Free::Free(void *free_ptr, uint32_t time, uint32_t backtrace_size,
+           void *(&buffer)[20])
+    : address{free_ptr}, time{time}, backtrace_size{backtrace_size} {
   std::copy(std::begin(buffer), std::end(buffer), backtrace_buffer.begin());
 }
 
@@ -82,17 +90,14 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Allocation const &alloc) {
-  // TODO: Check if buffer is full?
-  // std::cout << sizeof(struct Allocation) << std::endl;
-  // std::cout << "Tail: " << *tail << ", Head: " << *head << std::endl;
   std::memcpy(malloc_data_start + (*malloc_tail * sizeof(struct Allocation)),
               &alloc, sizeof(alloc));
   (*malloc_tail) =
       (*malloc_tail + 1) % (MALLOC_DATA_SIZE / sizeof(struct Allocation));
 }
 
-void SharedBuffer::write(void *ptr) {
-  std::memcpy(free_data_start + (*free_tail * sizeof(void *)), &ptr,
-              sizeof(void *));
+void SharedBuffer::write(Free const &free) {
+  std::memcpy(free_data_start + (*free_tail * sizeof(struct Free)), &free,
+              sizeof(struct Free));
   (*free_tail) = (*free_tail + 1) % (FREE_DATA_SIZE / sizeof(void *));
 }
