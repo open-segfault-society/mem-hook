@@ -49,6 +49,7 @@ parser.add_argument(
     be fit before the buffer is full. E.g. 'malloc 10 free 10' will allocate 10 times the size of one allocation-information for the malloc buffer and 10 times the size of one free-information for the free buffer.\
     Defaults to 64 for malloc and free unless --select-buffer-size-bytes is specified",
 )
+parser.add_argument("--print_frequency", default=5, help="")
 parser.add_argument("--read frequency", help="")
 parser.add_argument("--output file", help="")
 parser.add_argument("--interactive graph", help="")
@@ -62,4 +63,5 @@ buffer_sizes_in_writes = [
     for i in range(0, len(buffer_write_size), 2)
 ]
 pid = args.pid
+print_frequency = args.print_frequency
 print(pid)

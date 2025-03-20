@@ -1,6 +1,9 @@
 import os
 import mmap
 import time
+from collections import defaultdict
+import threading
+from dataclasses import dataclass
 
 # Constants
 HEAD_SIZE: int = 8
@@ -45,7 +48,13 @@ class Free:
 
     def __str__(self):
         addresses = [hex(value) for value in self.backtraces]
-        return f"FREE: Address: {hex(self.pointer)}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
+        return f"FREE:        Address: {hex(self.pointer)}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
+
+
+@dataclass
+class FunctionStatistics:
+    allocations: int = 0
+    allocation_size: int = 0
 
 
 class Memtracker:
@@ -54,13 +63,37 @@ class Memtracker:
         self.total_allocation_size = 0
         self.total_allocations = 0
 
+        # Saves the number and sizes of allocation per function (address)
+        # from its backtrace
+        # Key is address, value is list containing the total size and total allocations
+        self.current_function_allocations: dict[int, FunctionStatistics] = defaultdict(
+            lambda: FunctionStatistics()
+        )
+        self.total_function_allocations: dict[int, FunctionStatistics] = defaultdict(
+            lambda: FunctionStatistics()
+        )
+
     def add_allocation(self, allocation: Allocation):
         # TODO: nullptr? Could they be some edge case?
         self.allocations[allocation.pointer] = allocation
         self.total_allocation_size += allocation.size
         self.total_allocations += 1
 
+        # Update some statistics
+        for address in allocation.backtraces:
+
+            self.current_function_allocations[
+                address
+            ].allocation_size += allocation.size
+            self.current_function_allocations[address].allocations += 1
+
+            self.total_function_allocations[address].allocation_size += allocation.size
+            self.total_function_allocations[address].allocations += 1
+
     def remove_allocation(self, pointer: int):
+        # TODO: Do we want to remove any freed memory?
+        # Could there be value in seeing the total allocations along side
+        # the current ones?
         try:
             allocation = self.allocations[pointer]
         except KeyError:
@@ -70,7 +103,77 @@ class Memtracker:
 
         self.total_allocation_size -= allocation.size
         self.total_allocations -= 1
+
+        # Remove allocation from each function in backtrace
+        for address in allocation.backtraces:
+            self.current_function_allocations[
+                address
+            ].allocation_size -= allocation.size
+            self.current_function_allocations[address].allocations -= 1
+
         del self.allocations[pointer]
+
+    def print_allocation_size(
+        self, addresses: list[int], allocations: dict[int, FunctionStatistics]
+    ):
+        for key in addresses:
+            print(f"Adress: {hex(key)} - Alloctations: {allocations[key].allocations}")
+
+    def print_allocation_num(
+        self, addresses: list[int], allocations: dict[int, FunctionStatistics]
+    ):
+        for key in addresses:
+            print(
+                f"Adress: {hex(key)} - Alloctation size: {allocations[key].allocation_size}"
+            )
+
+    def print_statistics(self, delay):
+        threading.Timer(delay, self.print_statistics, [delay]).start()
+        current_most_allocations = sorted(
+            self.current_function_allocations.keys(),
+            key=lambda k: self.current_function_allocations[k].allocations,
+            reverse=True,
+        )
+        current_largest_allocations = sorted(
+            self.current_function_allocations.keys(),
+            key=lambda k: self.current_function_allocations[k].allocation_size,
+            reverse=True,
+        )
+        total_most_allocations = sorted(
+            self.total_function_allocations.keys(),
+            key=lambda k: self.total_function_allocations[k].allocations,
+            reverse=True,
+        )
+        total_largest_allocations = sorted(
+            self.total_function_allocations.keys(),
+            key=lambda k: self.total_function_allocations[k].allocation_size,
+            reverse=True,
+        )
+        print("=============================")
+        print("Current alloction information")
+        print("=============================")
+        print("Functions with most number allocations:")
+        self.print_allocation_size(
+            current_most_allocations, self.current_function_allocations
+        )
+
+        print("Functions with largest total allocation size:")
+        self.print_allocation_num(
+            current_largest_allocations, self.current_function_allocations
+        )
+
+        print("===========================")
+        print("Total alloction information")
+        print("===========================")
+        print("Functions with most number allocations:")
+        self.print_allocation_size(
+            total_most_allocations, self.total_function_allocations
+        )
+
+        print("Functions with largest total allocation size:")
+        self.print_allocation_num(
+            total_largest_allocations, self.total_function_allocations
+        )
 
 
 class SharedBuffer:
@@ -194,9 +297,8 @@ class SharedBuffer:
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
-            print(allocation)
             memtracker.add_allocation(allocation)
-            malloc_head = (malloc_head + 1) % 32
+            malloc_head = (malloc_head + 1) % 1000
 
         self.malloc_mem[0:4] = malloc_head.to_bytes(4, byteorder="little")
 
@@ -209,8 +311,7 @@ class SharedBuffer:
 
         while free_head != free_tail:
             free = self.read_free(free_head)
-            print(free)
             memtracker.remove_allocation(free.pointer)
-            free_head = (free_head + 1) % 32
+            free_head = (free_head + 1) % 1000
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")

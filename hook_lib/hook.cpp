@@ -47,7 +47,6 @@ extern "C" void free_hook(void *ptr) {
   //                       now.time_since_epoch())
   // .count();
   Free free{ptr, 0, backtrace_size, free_backtrace_buffer};
-  std::cout << sizeof(struct Free) << std::endl;
   buffer.write(free);
   return free_real(ptr);
 }
