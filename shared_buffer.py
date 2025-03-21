@@ -53,8 +53,8 @@ class Free:
 
 @dataclass
 class FunctionStatistics:
-    allocations: int = 0
-    allocation_size: int = 0
+    amount: int = 0  # Number of frees/allocation
+    sizes: int = 0  # Sizes of the allocations/frees
 
 
 class Memtracker:
@@ -62,6 +62,9 @@ class Memtracker:
         self.allocations = {}
         self.total_allocation_size = 0
         self.total_allocations = 0
+        self.frees = {}
+        self.total_free_size = 0
+        self.total_frees = 0
 
         # Saves the number and sizes of allocation per function (address)
         # from its backtrace
@@ -70,6 +73,12 @@ class Memtracker:
             lambda: FunctionStatistics()
         )
         self.total_function_allocations: dict[int, FunctionStatistics] = defaultdict(
+            lambda: FunctionStatistics()
+        )
+        self.current_function_frees: dict[int, FunctionStatistics] = defaultdict(
+            lambda: FunctionStatistics()
+        )
+        self.total_function_frees: dict[int, FunctionStatistics] = defaultdict(
             lambda: FunctionStatistics()
         )
 
@@ -82,13 +91,31 @@ class Memtracker:
         # Update some statistics
         for address in allocation.backtraces:
 
-            self.current_function_allocations[
-                address
-            ].allocation_size += allocation.size
-            self.current_function_allocations[address].allocations += 1
+            self.current_function_allocations[address].sizes += allocation.size
+            self.current_function_allocations[address].amount += 1
 
-            self.total_function_allocations[address].allocation_size += allocation.size
-            self.total_function_allocations[address].allocations += 1
+            self.total_function_allocations[address].sizes += allocation.size
+            self.total_function_allocations[address].amount += 1
+
+    def add_free(self, free: Free):
+        # TODO: Do we care about saving what pointers we've freed? They can and most likely will be reused
+        # self.frees[free.pointer] = free
+
+        try:
+            size = self.allocations[free.pointer].size
+            self.total_free_size += size
+        except KeyError:
+            size = 0
+        self.total_frees += 1
+
+        # Update some statistics
+        for address in free.backtraces:
+
+            self.current_function_frees[address].sizes += size
+            self.current_function_frees[address].amount += 1
+
+            self.total_function_frees[address].sizes += size
+            self.total_function_frees[address].amount += 1
 
     def remove_allocation(self, pointer: int):
         # TODO: Do we want to remove any freed memory?
@@ -106,10 +133,8 @@ class Memtracker:
 
         # Remove allocation from each function in backtrace
         for address in allocation.backtraces:
-            self.current_function_allocations[
-                address
-            ].allocation_size -= allocation.size
-            self.current_function_allocations[address].allocations -= 1
+            self.current_function_allocations[address].sizes -= allocation.size
+            self.current_function_allocations[address].amount -= 1
 
         del self.allocations[pointer]
 
@@ -117,36 +142,34 @@ class Memtracker:
         self, addresses: list[int], allocations: dict[int, FunctionStatistics]
     ):
         for key in addresses:
-            print(f"Adress: {hex(key)} - Alloctations: {allocations[key].allocations}")
+            print(f"Adress: {hex(key)} - Alloctations: {allocations[key].sizes }")
 
     def print_allocation_num(
         self, addresses: list[int], allocations: dict[int, FunctionStatistics]
     ):
         for key in addresses:
-            print(
-                f"Adress: {hex(key)} - Alloctation size: {allocations[key].allocation_size}"
-            )
+            print(f"Adress: {hex(key)} - Alloctation size: {allocations[key].amount}")
 
     def print_statistics(self, delay):
         threading.Timer(delay, self.print_statistics, [delay]).start()
         current_most_allocations = sorted(
             self.current_function_allocations.keys(),
-            key=lambda k: self.current_function_allocations[k].allocations,
+            key=lambda k: self.current_function_allocations[k].amount,
             reverse=True,
         )
         current_largest_allocations = sorted(
             self.current_function_allocations.keys(),
-            key=lambda k: self.current_function_allocations[k].allocation_size,
+            key=lambda k: self.current_function_allocations[k].sizes,
             reverse=True,
         )
         total_most_allocations = sorted(
             self.total_function_allocations.keys(),
-            key=lambda k: self.total_function_allocations[k].allocations,
+            key=lambda k: self.total_function_allocations[k].amount,
             reverse=True,
         )
         total_largest_allocations = sorted(
             self.total_function_allocations.keys(),
-            key=lambda k: self.total_function_allocations[k].allocation_size,
+            key=lambda k: self.total_function_allocations[k].sizes,
             reverse=True,
         )
         print("=============================")
@@ -164,6 +187,31 @@ class Memtracker:
 
         print("===========================")
         print("Total alloction information")
+        print("===========================")
+        print("Functions with most number allocations:")
+        self.print_allocation_size(
+            total_most_allocations, self.total_function_allocations
+        )
+
+        print("Functions with largest total allocation size:")
+        self.print_allocation_num(
+            total_largest_allocations, self.total_function_allocations
+        )
+        print("=============================")
+        print("  Current free information")
+        print("=============================")
+        print("Functions with most number allocations:")
+        self.print_allocation_size(
+            current_most_allocations, self.current_function_allocations
+        )
+
+        print("Functions with largest total allocation size:")
+        self.print_allocation_num(
+            current_largest_allocations, self.current_function_allocations
+        )
+
+        print("===========================")
+        print("   Total free information")
         print("===========================")
         print("Functions with most number allocations:")
         self.print_allocation_size(
@@ -311,6 +359,9 @@ class SharedBuffer:
 
         while free_head != free_tail:
             free = self.read_free(free_head)
+            # add_free must be called before remove_allocation
+            # since we use info from allocation to get free size
+            memtracker.add_free(free)
             memtracker.remove_allocation(free.pointer)
             free_head = (free_head + 1) % 1000
 
