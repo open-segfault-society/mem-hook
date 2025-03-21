@@ -4,6 +4,7 @@ import time
 from collections import defaultdict
 import threading
 from dataclasses import dataclass
+from enum import Enum
 
 # Constants
 HEAD_SIZE: int = 8
@@ -11,6 +12,11 @@ ALLOCATION_SIZE: int = (
     24 + 8 * 20
 )  # Accounts for inner padding, currently no padding between allocations
 FREE_SIZE: int = 8 + 4 + 4 + 8 * 20
+
+
+class Type(Enum):
+    ALLOCATION = (1,)
+    FREE = (2,)
 
 
 class Allocation:
@@ -138,17 +144,37 @@ class Memtracker:
 
         del self.allocations[pointer]
 
-    def print_allocation_size(
-        self, addresses: list[int], allocations: dict[int, FunctionStatistics]
+    def print_size(
+        self,
+        addresses: list[int],
+        function_statistics: dict[int, FunctionStatistics],
+        type: Type,
     ):
         for key in addresses:
-            print(f"Adress: {hex(key)} - Alloctations: {allocations[key].sizes }")
+            print(
+                f"Address: {hex(key)} - "
+                + type.name
+                + f": {function_statistics[key].sizes }"
+            )
 
-    def print_allocation_num(
-        self, addresses: list[int], allocations: dict[int, FunctionStatistics]
+    def print_num(
+        self,
+        addresses: list[int],
+        function_statistics: dict[int, FunctionStatistics],
+        type: Type,
     ):
         for key in addresses:
-            print(f"Adress: {hex(key)} - Alloctation size: {allocations[key].amount}")
+            print(
+                f"Address: {hex(key)} - "
+                + type.name
+                + f" size: {function_statistics[key].amount}"
+            )
+
+    def print_header(self, header: str):
+        width = 20
+        print("=" * width)
+        print(header.center(width))
+        print("=" * width)
 
     def print_statistics(self, delay):
         threading.Timer(delay, self.print_statistics, [delay]).start()
@@ -172,56 +198,46 @@ class Memtracker:
             key=lambda k: self.total_function_allocations[k].sizes,
             reverse=True,
         )
-        print("=============================")
-        print("Current alloction information")
-        print("=============================")
+        total_most_frees = sorted(
+            self.total_function_frees.keys(),
+            key=lambda k: self.total_function_frees[k].amount,
+            reverse=True,
+        )
+        total_largest_frees = sorted(
+            self.total_function_frees.keys(),
+            key=lambda k: self.total_function_frees[k].sizes,
+            reverse=True,
+        )
+        self.print_header("Current allocation information")
         print("Functions with most number allocations:")
-        self.print_allocation_size(
-            current_most_allocations, self.current_function_allocations
+        self.print_size(
+            current_most_allocations, self.current_function_allocations, Type.ALLOCATION
         )
 
         print("Functions with largest total allocation size:")
-        self.print_allocation_num(
-            current_largest_allocations, self.current_function_allocations
+        self.print_num(
+            current_largest_allocations,
+            self.current_function_allocations,
+            Type.ALLOCATION,
         )
 
-        print("===========================")
-        print("Total alloction information")
-        print("===========================")
+        self.print_header("Total allocation information")
         print("Functions with most number allocations:")
-        self.print_allocation_size(
-            total_most_allocations, self.total_function_allocations
+        self.print_size(
+            total_most_allocations, self.total_function_allocations, Type.ALLOCATION
         )
 
         print("Functions with largest total allocation size:")
-        self.print_allocation_num(
-            total_largest_allocations, self.total_function_allocations
-        )
-        print("=============================")
-        print("  Current free information")
-        print("=============================")
-        print("Functions with most number allocations:")
-        self.print_allocation_size(
-            current_most_allocations, self.current_function_allocations
+        self.print_num(
+            total_largest_allocations, self.total_function_allocations, Type.ALLOCATION
         )
 
-        print("Functions with largest total allocation size:")
-        self.print_allocation_num(
-            current_largest_allocations, self.current_function_allocations
-        )
+        self.print_header("Total free information")
+        print("Functions with most number frees:")
+        self.print_size(total_most_frees, self.total_function_frees, Type.FREE)
 
-        print("===========================")
-        print("   Total free information")
-        print("===========================")
-        print("Functions with most number allocations:")
-        self.print_allocation_size(
-            total_most_allocations, self.total_function_allocations
-        )
-
-        print("Functions with largest total allocation size:")
-        self.print_allocation_num(
-            total_largest_allocations, self.total_function_allocations
-        )
+        print("Functions with largest total free size:")
+        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
 
 
 class SharedBuffer:
