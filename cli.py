@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import dataclass
 
 """
 Goals of the CLI
@@ -12,56 +13,123 @@ Goals of the CLI
 """
 
 parser = argparse.ArgumentParser(
-    prog="Memwatch 2.0", description="A memory profiling tool"
+    prog="Memwatch 2.0",
+    description="A memory profiling tool",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 
 parser.add_argument(
-    "--hook-function",
-    default="malloc free",
-    help="Specify what functions to hook by providing their names, e.g. '--hook-function malloc free'. defaults to malloc and free",
-)
-parser.add_argument(
+    "-p",
     "--pid",
     default=None,
     required=True,
-    help="Specify the process id of the process to profile",
+    nargs=1,
+    help="Specify the process id of the program to profile.",
 )
 parser.add_argument(
+    "-hf",
+    "--hook-function",
+    default="malloc free",
+    required=False,
+    nargs="+",
+    help="Specify what functions to hook by providing their names.",
+)
+parser.add_argument(
+    "-fsr",
     "--filter-size-range",
     default=None,
+    required=False,
     help="Specify what ranges to probe, will ignore all allocations outside the specified range(s). \
-    [0-100] would profile all allocations from size 0 to 100 inclusive. Defaults to none.",
+    [0-100] would profile all allocations from size 0 to 100 inclusive.",
 )
 parser.add_argument(
+    "-fs",
     "--filter-size",
+    required=False,
     default=None,
-    help="Specify specific sizes to profile. Defaults to none.",
+    help="Specify specific sizes to profile.",
 )
 parser.add_argument(
+    "-sbsb",
     "--select-buffer-size-bytes",
+    required=False,
     default=None,
-    help="Specify the size of the buffer for a specific function in bytes, e.g. malloc 1024 will allocate 1kb for the malloc buffer. Has precedence over --select-buffer-size-writes. Defaults to none",
+    nargs="+",
+    help="Specify the size of the buffer for a specific function in bytes, e.g. malloc 1024 will allocate 1kb for the malloc buffer. Has precedence over --select-buffer-size-writes.",
 )
 parser.add_argument(
+    "-sbsw",
     "--select-buffer-size-writes",
-    default="malloc 64 free 64",
+    required=False,
+    default=["malloc", "1000", "free", "1000"],
+    nargs="+",
     help="Specify the size of the buffer for a specific function in how many writes should \
     be fit before the buffer is full. E.g. 'malloc 10 free 10' will allocate 10 times the size of one allocation-information for the malloc buffer and 10 times the size of one free-information for the free buffer.\
-    Defaults to 64 for malloc and free unless --select-buffer-size-bytes is specified",
+    --select-buffer-size-bytes has precedence over this argument.",
 )
-parser.add_argument("--print_frequency", default=5, help="")
-parser.add_argument("--read frequency", help="")
-parser.add_argument("--output file", help="")
-parser.add_argument("--interactive graph", help="")
-parser.print_help()
+parser.add_argument(
+    "-pf",
+    "--print_frequency",
+    default=5,
+    help="Specify what inverval in seconds to print the current state of allocations.",
+)
+parser.add_argument(
+    "-rf",
+    "--read_frequency",
+    default=0,
+    help="Specify what inverval in seconds to wait before reading from the profiler.",
+)
+parser.add_argument(
+    "-of",
+    "--output_file",
+    default=None,
+    help="Specify an output file to write to. If the value is None it will print to the terminal.",
+)
+parser.add_argument(
+    "--interactive_graph",
+    default="No",
+    help="If argument is set to yes it will show an interactive graph showing the current allocation size over time.",
+)
 args = parser.parse_args()
 
-hook_functions = [function for function in args.hook_function.split()]
-buffer_write_size = args.select_buffer_size_writes.split()
-buffer_sizes_in_writes = [
-    (buffer_write_size[i], int(buffer_write_size[i + 1]))
-    for i in range(0, len(buffer_write_size), 2)
-]
+
+@dataclass
+class BufferSize:
+    type: str
+    buffer_sizes: list[tuple[str, int]]
+
+    def __str__(self):
+        return self.type + str(self.buffer_sizes)
+
+
+def parse_buffer_size(args) -> BufferSize:
+
+    if args.select_buffer_size_bytes == None:
+        buffer_sizes = args.select_buffer_size_writes
+        type = "w"
+    else:
+        buffer_sizes = args.select_buffer_size_bytes
+        type = "b"
+
+    if len(buffer_sizes) % 2 != 0:
+        print("For each function specify its size in either writes or bytes.")
+        exit(1)
+
+    hooks_and_sizes = [
+        (buffer_sizes[i], int(buffer_sizes[i + 1]))
+        for i in range(0, len(buffer_sizes), 2)
+    ]
+
+    buffer = BufferSize(type, hooks_and_sizes)
+    return buffer
+
+
+parse_buffer_size(args)
+
+
+hook_functions = args.hook_function
 pid = args.pid
 print_frequency = args.print_frequency
-print(pid)
+outputfile = args.output_file
+print_frequency = args.print_frequency
+read_frequency = args.read_frequency
