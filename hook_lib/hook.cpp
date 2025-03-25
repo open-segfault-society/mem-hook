@@ -19,7 +19,10 @@ void* free_backtrace_buffer[BUFFER_SIZE];
 extern "C" void* malloc_hook(uint32_t size) {
     void* const ptr{malloc_real(size)}; // Call the original malloc
 
-    // TODO: test overhead difference of backtrace and backtrace_symbols
+    if (MALLOC_MIN_SIZE > size || size > MALLOC_MAX_SIZE) {
+        return ptr;
+    }
+
     uint32_t backtrace_size = backtrace(malloc_backtrace_buffer, BUFFER_SIZE);
     Allocation alloc{ptr, size, 0, backtrace_size, malloc_backtrace_buffer};
     buffer.write(alloc);

@@ -1,18 +1,17 @@
 import os
-import code_injector
 from hook_manager import HookManager
 from code_injector import CodeInjector
 import cli
 import shared_buffer
 
 if __name__ == "__main__":
-    CodeInjector.inject()
-
     if not os.getuid() == 0:
         print("The program must be run as root")
         exit(1)
 
-    print(f"pid: {cli.pid}")
+    rep_map: dict[str, str] = CodeInjector.get_replacement_map()
+    CodeInjector.inject(rep_map)
+
     memtracker = shared_buffer.Memtracker()
     hook_manager = HookManager(cli.pid)
 

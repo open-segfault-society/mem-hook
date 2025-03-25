@@ -61,6 +61,7 @@ class HookManager:
             self.obj_dump = self._get_obj_dump(self.process_path)
         except Exception as e:
             self._log(str(e), True)
+            exit(1)
 
     def register_hook(self, func_name: str, hook_name: str = "") -> None:
         if not hook_name:
