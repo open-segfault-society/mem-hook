@@ -103,8 +103,7 @@ class BufferSize:
 
 
 def parse_buffer_size(args) -> BufferSize:
-
-    if args.select_buffer_size_bytes == None:
+    if args.select_buffer_size_bytes is None:
         buffer_sizes = args.select_buffer_size_writes
         type = "w"
     else:
@@ -128,7 +127,7 @@ parse_buffer_size(args)
 
 
 hook_functions = args.hook_function
-pid = args.pid
+pid = int(args.pid[0])
 print_frequency = args.print_frequency
 outputfile = args.output_file
 print_frequency = args.print_frequency
