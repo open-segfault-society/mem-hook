@@ -1,10 +1,12 @@
-import sys
 import os
+import code_injector
 from hook_manager import HookManager
+from code_injector import CodeInjector
 import cli
 import shared_buffer
 
 if __name__ == "__main__":
+    CodeInjector.inject()
 
     if not os.getuid() == 0:
         print("The program must be run as root")
@@ -18,6 +20,7 @@ if __name__ == "__main__":
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
     memtracker.print_statistics(cli.print_frequency)
+
 
     with hook_manager.inject() as hd, shared_buffer.SharedBuffer() as shared_buffer:
         try:
