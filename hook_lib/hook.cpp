@@ -18,10 +18,9 @@ void* free_backtrace_buffer[BUFFER_SIZE];
 // The hook function for malloc
 extern "C" void* malloc_hook(uint32_t size) {
     void* const ptr{malloc_real(size)}; // Call the original malloc
-
-    if (MALLOC_MIN_SIZE > size || size > MALLOC_MAX_SIZE) {
-        return ptr;
-    }
+    
+<<<MALLOC_FILTER_RANGE>>>
+<<<MALLOC_FILTER>>>
 
     uint32_t backtrace_size = backtrace(malloc_backtrace_buffer, BUFFER_SIZE);
     Allocation alloc{ptr, size, 0, backtrace_size, malloc_backtrace_buffer};
