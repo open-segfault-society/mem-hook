@@ -59,8 +59,6 @@ Buffer::Buffer(std::string mount_point, uint32_t num_allocations,
     tail = reinterpret_cast<uint32_t*>(head + 1);
 
     *head = 0;
-    std::cout << head << std::endl;
-    std::cout << *head << std::endl;
     *tail = 0;
     data_start = reinterpret_cast<char*>(memory) + head_size;
 }
@@ -71,25 +69,11 @@ Buffer::~Buffer() {
     close(fd);
 }
 
-SharedBuffer::SharedBuffer() {
-    std::string malloc_mount = "/mem_hook_alloc";
-    uint32_t malloc_num_allocations{1000};
-    uint32_t malloc_head_size = 8;
-    uint32_t malloc_data_size =
-        sizeof(struct Allocation) * malloc_num_allocations;
-    uint32_t malloc_buffer_size = malloc_head_size + malloc_data_size;
-    malloc_buffer =
-        Buffer(malloc_mount, malloc_num_allocations, malloc_head_size,
-               malloc_data_size, malloc_buffer_size);
-
-    std::string free_mount = "/mem_hook_free";
-    uint32_t free_num_allocations{1000};
-    uint32_t free_head_size = 8;
-    uint32_t free_data_size = sizeof(struct Free) * free_num_allocations;
-    uint32_t free_buffer_size = free_head_size + free_data_size;
-    free_buffer = Buffer(free_mount, free_num_allocations, free_head_size,
-                         free_data_size, free_buffer_size);
-};
+SharedBuffer::SharedBuffer()
+    : malloc_buffer("/mem_hook_alloc", 1000, 8, sizeof(Allocation) * 1000,
+                    8 + sizeof(Allocation) * 1000),
+      free_buffer("/mem_hook_free", 1000, 8, sizeof(Free) * 1000,
+                  8 + sizeof(Free) * 1000) {};
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup
@@ -98,30 +82,18 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Allocation const& alloc) {
-    // std::cout << 12313123 << std::endl;
-    // std::cout << malloc_buffer.tail << std::endl;
-    // printf("tail: %p, data start: %p\n", malloc_buffer.tail, malloc_buffer.data_start);
-    // *(malloc_buffer.head) = 2;
-    // std::cout << 123 << std::endl;
-    // std::cout << *malloc_buffer.head << std::endl;
-    // std::cout << *malloc_buffer.data_start << std::endl;
-    // std::cout << *malloc_buffer.tail << std::endl;
-
-
-    // std::memcpy(malloc_buffer.data_start +
-    //                 (*malloc_buffer.tail * sizeof(struct Allocation)),
-    //             &alloc, sizeof(alloc));
-    // std::cout << 12313123 << std::endl;
-    // (*malloc_buffer.tail) =
-    //     (*malloc_buffer.tail + 1) %
-    //     (malloc_buffer.data_size / sizeof(struct Allocation));
+    std::memcpy(malloc_buffer.data_start +
+                    (*malloc_buffer.tail * sizeof(struct Allocation)),
+                &alloc, sizeof(alloc));
+    (*malloc_buffer.tail) =
+        (*malloc_buffer.tail + 1) %
+        (malloc_buffer.data_size / sizeof(struct Allocation));
 }
 
 void SharedBuffer::write(Free const& free) {
-    // std::memcpy(free_buffer.data_start +
-    //                 (*free_buffer.tail * sizeof(struct Free)),
-    //             &free, sizeof(struct Free));
-    // (*free_buffer.tail) =
-    //     (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct
-    //     Free));
+    std::memcpy(free_buffer.data_start +
+                    (*free_buffer.tail * sizeof(struct Free)),
+                &free, sizeof(struct Free));
+    (*free_buffer.tail) =
+        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
 }

@@ -78,7 +78,6 @@ class HookManager:
     def inject(self) -> HookDescriptor:
         # Inject the dynamic hooking library
         _ = self._inject_library(self.pid, self.lib_path)
-        print(123123123123123123123123123123)
 
         hook_names = []
         for hook in self.hooks:

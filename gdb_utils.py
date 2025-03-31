@@ -28,9 +28,7 @@ class GdbUtils:
     @staticmethod
     def inject_library(pid: int, path: str):
 
-        print(123123123131231231231)
         output = GdbUtils.run_gdb(pid, f'call (void*) dlopen("{path}", 1)')
-        print(454545454545454545454)
         handle_match = re.search(r"0x([a-fA-F0-9]+)", output)
 
         if not handle_match:

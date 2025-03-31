@@ -26,8 +26,6 @@ extern "C" void* malloc_hook(uint32_t size) {
     uint32_t backtrace_size = backtrace(malloc_backtrace_buffer, BUFFER_SIZE);
     Allocation alloc{ptr, size, 0, backtrace_size, malloc_backtrace_buffer};
     buffer.write(alloc);
-
-    std::cout << 123456 << std::endl;
     return ptr;
 }
 
