@@ -2,7 +2,7 @@
 CXX = g++
 CXXFLAGS = -fPIC -shared -Wall
 LIB_NAME = hook.so
-SRC = $(wildcard hook_lib/*.cpp)  
+SRC = $(wildcard *.cpp)  
 OBJ = $(SRC:.cpp=.o)
 
 # Default target: Build the shared object

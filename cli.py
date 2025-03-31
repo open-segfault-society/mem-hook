@@ -39,6 +39,7 @@ parser.add_argument(
     "--filter-size-range",
     default=None,
     required=False,
+    nargs="+",
     help="Specify what ranges to probe, will ignore all allocations outside the specified range(s). \
     [0-100] would profile all allocations from size 0 to 100 inclusive.",
 )
@@ -47,6 +48,7 @@ parser.add_argument(
     "--filter-size",
     required=False,
     default=None,
+    nargs="+",
     help="Specify specific sizes to profile.",
 )
 parser.add_argument(
@@ -126,9 +128,24 @@ def parse_buffer_size(args) -> BufferSize:
 parse_buffer_size(args)
 
 
-hook_functions = args.hook_function
-pid = int(args.pid[0])
-print_frequency = args.print_frequency
-outputfile = args.output_file
-print_frequency = args.print_frequency
-read_frequency = args.read_frequency
+try:
+    hook_functions = args.hook_function
+    pid = int(args.pid[0])
+
+    if args.filter_size:
+        filter_size = list(map(int, args.filter_size))
+    else:
+        filter_size = None
+
+    if args.filter_size_range:
+        filter_size_range = [tuple(map(int, fsr.split('-'))) for fsr in args.filter_size_range]
+    else:
+        filter_size_range = []
+
+    print_frequency = args.print_frequency
+    outputfile = args.output_file
+    print_frequency = args.print_frequency
+    read_frequency = args.read_frequency
+except Exception as e:
+    print(f"Error while parsing input arguments: {e}")
+    exit(1)
