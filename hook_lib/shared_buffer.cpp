@@ -87,8 +87,6 @@ SharedBuffer::SharedBuffer() {
     uint32_t free_buffer_size = free_head_size + free_data_size;
     free_buffer = Buffer(free_mount, free_num_allocations, free_head_size,
                          free_data_size, free_buffer_size);
-    while (true) {
-    }
 };
 
 SharedBuffer::~SharedBuffer() {
@@ -98,20 +96,23 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Allocation const& alloc) {
-    std::cout << "MALLOOOOOOOOOOOOOCCCCCCCCCCCCCC!!!!!!!!!!!!!!!!!!!!!!!!!"
-              << std::endl;
+    std::cout << 12313123 << std::endl;
+    std::cout << malloc_buffer.tail << std::endl;
+
     std::memcpy(malloc_buffer.data_start +
                     (*malloc_buffer.tail * sizeof(struct Allocation)),
                 &alloc, sizeof(alloc));
+    std::cout << 12313123 << std::endl;
     (*malloc_buffer.tail) =
         (*malloc_buffer.tail + 1) %
         (malloc_buffer.data_size / sizeof(struct Allocation));
 }
 
 void SharedBuffer::write(Free const& free) {
-    std::memcpy(free_buffer.data_start +
-                    (*free_buffer.tail * sizeof(struct Free)),
-                &free, sizeof(struct Free));
-    (*free_buffer.tail) =
-        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
+    // std::memcpy(free_buffer.data_start +
+    //                 (*free_buffer.tail * sizeof(struct Free)),
+    //             &free, sizeof(struct Free));
+    // (*free_buffer.tail) =
+    //     (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct
+    //     Free));
 }
