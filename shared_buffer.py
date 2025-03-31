@@ -5,6 +5,11 @@ from collections import defaultdict
 import threading
 from dataclasses import dataclass
 from enum import Enum
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.ticker as ticker
+import random
+from functools import partial
 
 # Constants
 HEAD_SIZE: int = 8
@@ -63,6 +68,29 @@ class FunctionStatistics:
     sizes: int = 0  # Sizes of the allocations/frees
 
 
+class Graph:
+    def __init__(self):
+        self.fig, self.ax = plt.subplots()
+        self.x_data, self.y_data = [], []
+        self.line, = self.ax.plot([], [])
+        plt.ion()
+        plt.show(block=False)
+
+    def update(self):
+        self.line.set_data(self.x_data, self.y_data)
+        self.ax.relim()
+        self.ax.autoscale_view()
+
+        self.fig.canvas.draw()  # Redraw figure
+        self.fig.canvas.flush_events()  # Process GUI events
+
+    def add_x(self, data):
+        self.x_data.append(data)
+
+    def add_y(self, data):
+        self.y_data.append(data)
+
+
 class Memtracker:
     def __init__(self):
         self.allocations = {}
@@ -71,6 +99,7 @@ class Memtracker:
         self.frees = {}
         self.total_free_size = 0
         self.total_frees = 0
+        self.time_start = time.time()
 
         # Saves the number and sizes of allocation per function (address)
         # from its backtrace
@@ -88,11 +117,22 @@ class Memtracker:
             lambda: FunctionStatistics()
         )
 
+        self.graph: Graph | None = None 
+
+    def do_event_loop(self):
+        if self.graph is not None:
+            self.graph.update()
+
     def add_allocation(self, allocation: Allocation):
         # TODO: nullptr? Could they be some edge case?
         self.allocations[allocation.pointer] = allocation
         self.total_allocation_size += allocation.size
         self.total_allocations += 1
+
+        if self.graph is not None:
+            self.graph.add_x(round(allocation.time - self.time_start, 2))
+            self.graph.add_y(self.total_allocation_size)
+            self.graph.update()
 
         # Update some statistics
         for address in allocation.backtraces:
@@ -113,6 +153,11 @@ class Memtracker:
         except KeyError:
             size = 0
         self.total_frees += 1
+
+        if self.graph is not None:
+            self.graph.add_x(round(free.time - self.time_start, 2))
+            self.graph.add_y(self.total_allocation_size)
+            self.graph.update()
 
         # Update some statistics
         for address in free.backtraces:
@@ -239,6 +284,9 @@ class Memtracker:
         print("Functions with largest total free size:")
         self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
 
+    def display_graph(self, delay):
+        self.graph = Graph()
+
 
 class SharedBuffer:
     MALLOC_MOUNT: str = "/dev/shm/mem_hook_alloc"
@@ -354,7 +402,7 @@ class SharedBuffer:
 
     def read(self, memtracker: Memtracker):
         # =================
-        #       MALLOC
+    #       MALLOC
         # =================
         malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
         malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
@@ -377,8 +425,9 @@ class SharedBuffer:
             free = self.read_free(free_head)
             # add_free must be called before remove_allocation
             # since we use info from allocation to get free size
-            memtracker.add_free(free)
             memtracker.remove_allocation(free.pointer)
+            memtracker.add_free(free)
             free_head = (free_head + 1) % 1000
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
+        memtracker.do_event_loop()

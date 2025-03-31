@@ -99,5 +99,5 @@ void SharedBuffer::write(Allocation const &alloc) {
 void SharedBuffer::write(Free const &free) {
   std::memcpy(free_data_start + (*free_tail * sizeof(struct Free)), &free,
               sizeof(struct Free));
-  (*free_tail) = (*free_tail + 1) % (FREE_DATA_SIZE / sizeof(void *));
+  (*free_tail) = (*free_tail + 1) % (FREE_DATA_SIZE / sizeof(struct Free));
 }

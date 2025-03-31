@@ -30,7 +30,8 @@ if __name__ == "__main__":
     # Register hooks
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
-    memtracker.print_statistics(cli.print_frequency)
+    # memtracker.print_statistics(cli.print_frequency)
+    memtracker.display_graph(1)
 
     with hook_manager.inject() as hd, shared_buffer.SharedBuffer() as shared_buffer:
         try:
