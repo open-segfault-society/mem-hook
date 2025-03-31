@@ -63,39 +63,55 @@ Buffer::Buffer(std::string mount_point, uint32_t num_allocations,
     data_start = reinterpret_cast<char*>(memory) + head_size;
 }
 
-SharedBuffer::SharedBuffer() {
-  std::string malloc_mount = "/mem_hook_alloc";
-  uint32_t malloc_num_allocations {1000};
-  uint32_t malloc_head_size = 8;
-  uint32_t malloc_data_size = sizeof(struct Allocation) * malloc_num_allocations;
-  uint32_t malloc_buffer_size = malloc_head_size + malloc_data_size;
-  malloc_buffer = Buffer(malloc_mount, malloc_num_allocations, malloc_head_size, malloc_data_size, malloc_buffer_size);
+Buffer::~Buffer() {
+    // CLeanup
+    munmap(memory, buffer_size);
+    close(fd);
+}
 
-  std::string free_mount = "/mem_hook_free";
-  uint32_t free_num_allocations {1000};
-  uint32_t free_head_size = 8;
-  uint32_t free_data_size = sizeof(struct Free) * free_num_allocations;
-  uint32_t free_buffer_size = free_head_size + free_data_size;
-  free_buffer = Buffer(free_mount, free_num_allocations, free_head_size, free_data_size, free_buffer_size);
+SharedBuffer::SharedBuffer() {
+    std::string malloc_mount = "/mem_hook_alloc";
+    uint32_t malloc_num_allocations{1000};
+    uint32_t malloc_head_size = 8;
+    uint32_t malloc_data_size =
+        sizeof(struct Allocation) * malloc_num_allocations;
+    uint32_t malloc_buffer_size = malloc_head_size + malloc_data_size;
+    malloc_buffer =
+        Buffer(malloc_mount, malloc_num_allocations, malloc_head_size,
+               malloc_data_size, malloc_buffer_size);
+
+    std::string free_mount = "/mem_hook_free";
+    uint32_t free_num_allocations{1000};
+    uint32_t free_head_size = 8;
+    uint32_t free_data_size = sizeof(struct Free) * free_num_allocations;
+    uint32_t free_buffer_size = free_head_size + free_data_size;
+    free_buffer = Buffer(free_mount, free_num_allocations, free_head_size,
+                         free_data_size, free_buffer_size);
+    while (true) {
+    }
 };
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup
-    munmap(malloc_memory, MALLOC_BUFF_SIZE);
-    close(fd_malloc);
-    munmap(free_memory, FREE_BUFF_SIZE);
-    close(fd_free);
+    malloc_buffer.~Buffer();
+    free_buffer.~Buffer();
 }
 
 void SharedBuffer::write(Allocation const& alloc) {
-    std::memcpy(malloc_data_start + (*malloc_tail * sizeof(struct Allocation)),
+    std::cout << "MALLOOOOOOOOOOOOOCCCCCCCCCCCCCC!!!!!!!!!!!!!!!!!!!!!!!!!"
+              << std::endl;
+    std::memcpy(malloc_buffer.data_start +
+                    (*malloc_buffer.tail * sizeof(struct Allocation)),
                 &alloc, sizeof(alloc));
-    (*malloc_tail) =
-        (*malloc_tail + 1) % (MALLOC_DATA_SIZE / sizeof(struct Allocation));
+    (*malloc_buffer.tail) =
+        (*malloc_buffer.tail + 1) %
+        (malloc_buffer.data_size / sizeof(struct Allocation));
 }
 
 void SharedBuffer::write(Free const& free) {
-    std::memcpy(free_data_start + (*free_tail * sizeof(struct Free)), &free,
-                sizeof(struct Free));
-    (*free_tail) = (*free_tail + 1) % (FREE_DATA_SIZE / sizeof(void*));
+    std::memcpy(free_buffer.data_start +
+                    (*free_buffer.tail * sizeof(struct Free)),
+                &free, sizeof(struct Free));
+    (*free_buffer.tail) =
+        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
 }

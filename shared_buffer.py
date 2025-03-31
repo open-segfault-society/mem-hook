@@ -1,8 +1,8 @@
-import os
 import mmap
+import os
+import threading
 import time
 from collections import defaultdict
-import threading
 from dataclasses import dataclass
 from enum import Enum
 
@@ -177,7 +177,7 @@ class Memtracker:
         print("=" * width)
 
     def print_statistics(self, delay):
-        threading.Timer(delay, self.print_statistics, [delay]).start()
+        # threading.Timer(delay, self.print_statistics, [delay]).start()
         current_most_allocations = sorted(
             self.current_function_allocations.keys(),
             key=lambda k: self.current_function_allocations[k].amount,

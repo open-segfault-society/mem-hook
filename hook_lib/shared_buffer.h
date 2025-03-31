@@ -31,14 +31,8 @@ class Buffer {
   public:
     Buffer(std::string mount_point, uint32_t num_allocations,
            uint32_t head_size, uint32_t data_size, uint32_t buffer_size);
-    Buffer();
-
-  private:
-    std::string mount_point;
-    uint32_t num_allocations;
-    uint32_t head_size;
-    uint32_t data_size;
-    uint32_t buffer_size;
+    Buffer() = default;
+    ~Buffer();
 
     // Shared memory
     void* memory;
@@ -48,6 +42,12 @@ class Buffer {
     uint32_t* head;
     uint32_t* tail;
     char* data_start; // char pointer to avoid dividing memory address with 4
+
+    std::string mount_point;
+    uint32_t num_allocations;
+    uint32_t head_size;
+    uint32_t data_size;
+    uint32_t buffer_size;
 };
 
 class SharedBuffer {
@@ -60,28 +60,28 @@ class SharedBuffer {
   private:
     Buffer malloc_buffer;
     Buffer free_buffer;
-    char constexpr static ALLOC_MOUNT[] = "/mem_hook_alloc";
-    char constexpr static FREE_MOUNT[] = "/mem_hook_free";
-    uint32_t static const NUM_ALLOCATIONS{1000};
-    uint32_t static const HEAD_SIZE{8};
-    uint32_t static const MALLOC_DATA_SIZE{NUM_ALLOCATIONS *
-                                           sizeof(struct Allocation)};
-    uint32_t static const MALLOC_BUFF_SIZE{HEAD_SIZE + MALLOC_DATA_SIZE};
+    // char constexpr static ALLOC_MOUNT[] = "/mem_hook_alloc";
+    // char constexpr static FREE_MOUNT[] = "/mem_hook_free";
+    // uint32_t static const NUM_ALLOCATIONS{1000};
+    // uint32_t static const HEAD_SIZE{8};
+    // uint32_t static const MALLOC_DATA_SIZE{NUM_ALLOCATIONS *
+    //                                        sizeof(struct Allocation)};
+    // uint32_t static const MALLOC_BUFF_SIZE{HEAD_SIZE + MALLOC_DATA_SIZE};
 
-    uint32_t static const FREE_DATA_SIZE{NUM_ALLOCATIONS * sizeof(struct Free)};
-    uint32_t static const FREE_BUFF_SIZE{HEAD_SIZE + FREE_DATA_SIZE};
+    // uint32_t static const FREE_DATA_SIZE{NUM_ALLOCATIONS * sizeof(struct
+    // Free)}; uint32_t static const FREE_BUFF_SIZE{HEAD_SIZE + FREE_DATA_SIZE};
 
-    // Shared buffer
-    void* malloc_memory;
-    void* free_memory;
-    int fd_malloc;
-    int fd_free;
+    // // Shared buffer
+    // void* malloc_memory;
+    // void* free_memory;
+    // int fd_malloc;
+    // int fd_free;
 
-    // Ring buffer
-    uint32_t* malloc_head;
-    uint32_t* malloc_tail;
-    uint32_t* free_head;
-    uint32_t* free_tail;
-    char* malloc_data_start;
-    char* free_data_start;
+    // // Ring buffer
+    // uint32_t* malloc_head;
+    // uint32_t* malloc_tail;
+    // uint32_t* free_head;
+    // uint32_t* free_tail;
+    // char* malloc_data_start;
+    // char* free_data_start;
 };
