@@ -15,6 +15,8 @@ def compile_and_inject():
     if cli.filter_size:
         code_entries.append(CodeEntryFactory.malloc_filter(cli.filter_size))
 
+    code_entries.append(CodeEntryFactory.buffer_sizes(cli.buffer_sizes))
+
     CodeInjector.inject(code_entries)
 
 
