@@ -1,7 +1,8 @@
 import os
-import subprocess
 import re
+import subprocess
 from dataclasses import dataclass
+
 from gdb_utils import GdbUtils
 
 
@@ -89,8 +90,8 @@ class HookManager:
                 pass
 
         num = len(hook_names)
-        plural = 's' if len(hook_names) > 1 else ''
-        names = ', '.join(hook_names)
+        plural = "s" if len(hook_names) > 1 else ""
+        names = ", ".join(hook_names)
         self._log(f"Hooking {num} function{plural}... ({names})")
         hd = HookDescriptor(self.hooks, self.pid)
         return hd
@@ -161,7 +162,6 @@ if __name__ == "__main__":
     hm = HookManager(124168)
     hm.register_hook("malloc")
     hm.register_hook("fraaee")
-    
 
     with hm.inject() as f:
         pass

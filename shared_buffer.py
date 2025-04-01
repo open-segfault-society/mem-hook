@@ -1,8 +1,8 @@
-import os
 import mmap
+import os
+import threading
 import time
 from collections import defaultdict
-import threading
 from dataclasses import dataclass
 from enum import Enum
 

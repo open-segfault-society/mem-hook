@@ -1,5 +1,5 @@
-import subprocess
 import re
+import subprocess
 
 
 class GdbUtils:
@@ -27,6 +27,7 @@ class GdbUtils:
 
     @staticmethod
     def inject_library(pid: int, path: str):
+
         output = GdbUtils.run_gdb(pid, f'call (void*) dlopen("{path}", 1)')
         handle_match = re.search(r"0x([a-fA-F0-9]+)", output)
 

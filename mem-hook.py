@@ -1,8 +1,9 @@
 import os
-from hook_manager import HookManager
-from code_injector import CodeInjector, CodeEntry, CodeEntryFactory
+
 import cli
 import shared_buffer
+from code_injector import CodeEntry, CodeEntryFactory, CodeInjector
+from hook_manager import HookManager
 
 
 def compile_and_inject():
