@@ -27,12 +27,12 @@ Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
 //       Buffer
 // ===================
 
-Buffer::Buffer(std::string mount_point, uint32_t head_size, uint32_t data_size,
+Buffer::Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
                uint32_t buffer_size)
     : head_size{head_size}, data_size{data_size}, buffer_size{buffer_size} {
 
     // Open the existing shared memory object
-    fd = shm_open(mount_point.c_str(), O_CREAT | O_RDWR, 0666);
+    fd = shm_open(mount_point, O_CREAT | O_RDWR, 0666);
     if (fd == -1) {
         perror("shm_open");
         return;
@@ -67,9 +67,7 @@ Buffer::~Buffer() {
 }
 
 SharedBuffer::SharedBuffer() : 
-    <<<FREE_CONSTRUCTOR>>>
-    <<<MALLOC_CONSTRUCTOR>>>
-    ;
+    <<<CONSTRUCTORS>>> {};
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup

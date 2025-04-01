@@ -1,17 +1,17 @@
 import os
-import subprocess
 import shutil
-from tempfile import TemporaryDirectory
+import subprocess
 from dataclasses import dataclass
 from enum import Enum
+from tempfile import TemporaryDirectory
+
 from cli import *
 
 
 class Placeholder(str, Enum):
     MALLOC_FILTER_RANGE = "<<<MALLOC_FILTER_RANGE>>>"
     MALLOC_FILTER = "<<<MALLOC_FILTER>>>"
-    FREE_CONSTRUCTOR = "<<<FREE_CONSTRUCTOR>>>"
-    MALLOC_CONSTRUCTOR = "<<<MALLOC_CONSTRUCTOR>>>"
+    CONSTRUCTORS = "<<<CONSTRUCTORS>>>"
 
 
 @dataclass
@@ -56,8 +56,7 @@ class CodeEntryFactory:
         return CodeEntry(placeholder, snippet)
 
     @staticmethod
-    def malloc_constructor(type: str, size: int, last: bool) -> CodeEntry:
-        placeholder = Placeholder.MALLOC_CONSTRUCTOR
+    def malloc_constructor(type: str, size: int, last: bool) -> str:
 
         snippet = 'malloc_buffer("/mem_hook_alloc", 8, {}, 8 + {}),'
 
@@ -71,18 +70,18 @@ class CodeEntryFactory:
 
         # Make sure all entries must be parsed correctly
         else:
-            raise Exception(f"Unable to parse buffer type for size: {size}, type: {type}")
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
 
         if last:
             snippet = snippet[:-1]
-        return CodeEntry(placeholder, snippet)
+        else:
+            snippet = snippet + "\n"
+        return snippet
 
     @staticmethod
-    def free_constructor(type: str, size: int, last: bool) -> CodeEntry:
-        placeholder = Placeholder.FREE_CONSTRUCTOR
-
-        placeholder = Placeholder.MALLOC_CONSTRUCTOR
-
+    def free_constructor(type: str, size: int, last: bool) -> str:
         snippet = 'free_buffer("/mem_hook_free", 8, {}, 8 + {}),'
 
         if type == "w":
@@ -95,31 +94,39 @@ class CodeEntryFactory:
 
         # Make sure all entries must be parsed correctly
         else:
-            raise Exception(f"Unable to parse buffer type for size: {size}, type: {type}")
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
 
         if last:
             snippet = snippet[:-1]
-        return CodeEntry(placeholder, snippet)
+        else:
+            snippet = snippet + "\n"
+        return snippet
 
     @staticmethod
     def buffer_sizes(buffer: BufferSize) -> CodeEntry:
+        placeholder = Placeholder.CONSTRUCTORS
+        snippet = ""
         type = buffer.type
         for i, (function, size) in enumerate(buffer.buffer_sizes):
 
-            # Since classes are instantiated with initializer list 
+            # Since classes are instantiated with initializer list
             # they are comma seperated. Last comma must however be removed
             last = False
             if i == len(buffer.buffer_sizes) - 1:
                 last = True
 
             if function == "free":
-                return CodeEntryFactory.free_constructor(type, size, last)
+                snippet += CodeEntryFactory.free_constructor(type, size, last)
             elif function == "malloc":
-                return CodeEntryFactory.malloc_constructor(type, size, last)
+                snippet += CodeEntryFactory.malloc_constructor(type, size, last)
 
             # Make sure all entries must be parsed correctly
             else:
                 raise Exception(f"Unable to parse buffer size for function: {function}")
+        return CodeEntry(placeholder, snippet)
+
 
 class CodeInjector:
     DIRECTORY: str = "hook_lib"
