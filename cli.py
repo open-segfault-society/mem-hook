@@ -103,6 +103,28 @@ class BufferSize:
     def __str__(self):
         return self.type + str(self.buffer_sizes)
 
+def verify_sizes(type: str, hooks_and_sizes: list[tuple[str, int]]):
+
+    for i, (hook, size) in enumerate(hooks_and_sizes):
+        if type == "w" and size < 1:
+            print(f"The size for hook {hook} is less than one write, size changed to 1 write.")
+            hooks_and_sizes[i] = (hook, 1)
+
+        if type == "b" and size < 199:
+            print(f"The size for hook {hook} is less than 200 bytes, size changed to 200 bytes")
+            hooks_and_sizes[i] = (hook, 200)
+
+def verify_filter_sizes(filter_size: list[int]):
+
+    remove_sizes = []
+
+    for size in filter_size:
+        if size < 0:
+            print(f"Entered size {size} is less then zero and removed")
+            remove_sizes.append(size)
+
+    for size in remove_sizes:
+        filter_size.remove(size)
 
 def parse_buffer_size(args) -> BufferSize:
     if args.select_buffer_size_bytes is None:
@@ -113,13 +135,15 @@ def parse_buffer_size(args) -> BufferSize:
         type = "b"
 
     if len(buffer_sizes) % 2 != 0:
-        print("For each function specify its size in either writes or bytes.")
+        print("For each function also specify its size.")
         exit(1)
 
     hooks_and_sizes = [
         (buffer_sizes[i], int(buffer_sizes[i + 1]))
         for i in range(0, len(buffer_sizes), 2)
     ]
+
+    verify_sizes(type, hooks_and_sizes)
 
     buffer = BufferSize(type, hooks_and_sizes)
     return buffer
@@ -134,11 +158,13 @@ try:
 
     if args.filter_size:
         filter_size = list(map(int, args.filter_size))
+        verify_filter_sizes(filter_size)
     else:
         filter_size = None
 
     if args.filter_size_range:
-        filter_size_range = [tuple(map(int, fsr.split('-'))) for fsr in args.filter_size_range]
+        # Since this cant parse ranges that start with negative values we kinda dont need to verify it
+        filter_size_ranges = [tuple(map(int, fsr.split('-'))) for fsr in args.filter_size_range]
     else:
         filter_size_range = []
 
@@ -146,6 +172,15 @@ try:
     outputfile = args.output_file
     print_frequency = args.print_frequency
     read_frequency = args.read_frequency
+
+    if print_frequency < 0:
+        print(f"Print frequency {print_frequency} is less than zero, changed to 5.")
+        print_frequency = 5
+
+    if read_frequency < 0:
+        print(f"Read frequency {read_frequency} is less than zero, changed to 0.")
+        print_frequency = 0
+
 except Exception as e:
     print(f"Error while parsing input arguments: {e}")
     exit(1)
