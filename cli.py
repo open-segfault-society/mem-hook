@@ -164,7 +164,7 @@ try:
 
     if args.filter_size_range:
         # Since this cant parse ranges that start with negative values we kinda dont need to verify it
-        filter_size_ranges = [tuple(map(int, fsr.split('-'))) for fsr in args.filter_size_range]
+        filter_size_range = [tuple(map(int, fsr.split('-'))) for fsr in args.filter_size_range]
     else:
         filter_size_range = []
 
