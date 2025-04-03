@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 # Constants
-HEAD_SIZE: int = 8
+HEAD_SIZE: int = 12
 ALLOCATION_SIZE: int = (
     24 + 8 * 20
 )  # Accounts for inner padding, currently no padding between allocations
@@ -358,6 +358,7 @@ class SharedBuffer:
         # =================
         malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
         malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
+        malloc_overflow = int.from_bytes(self.malloc_mem[8:12], byteorder="little")
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
@@ -372,6 +373,7 @@ class SharedBuffer:
 
         free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
         free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
+        free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
 
         while free_head != free_tail:
             free = self.read_free(free_head)

@@ -57,9 +57,11 @@ Buffer::Buffer(std::string mount_point, uint32_t num_allocations,
 
     head = reinterpret_cast<uint32_t*>(memory);
     tail = reinterpret_cast<uint32_t*>(head + 1);
+    overflow = reinterpret_cast<uint32_t*>(head + 2);
 
     *head = 0;
     *tail = 0;
+    *overflow = 0;
     data_start = reinterpret_cast<char*>(memory) + head_size;
 }
 
@@ -70,10 +72,10 @@ Buffer::~Buffer() {
 }
 
 SharedBuffer::SharedBuffer()
-    : malloc_buffer("/mem_hook_alloc", 1000, 8, sizeof(Allocation) * 1000,
+    : malloc_buffer("/mem_hook_alloc", 1000, 12, sizeof(Allocation) * 1000,
                     8 + sizeof(Allocation) * 1000),
-      free_buffer("/mem_hook_free", 1000, 8, sizeof(Free) * 1000,
-                  8 + sizeof(Free) * 1000) {};
+      free_buffer("/mem_hook_free", 1000, 12, sizeof(Free) * 1000,
+                  8 + sizeof(Free) * 1000){};
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup
@@ -82,18 +84,31 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Allocation const& alloc) {
+    uint32_t const next_tail =
+        (*malloc_buffer.tail + 1) %
+        (malloc_buffer.data_size / sizeof(struct Allocation));
+
+    if (next_tail == *malloc_buffer.head) {
+        *malloc_buffer.overflow = 1;
+        return;
+    }
+
     std::memcpy(malloc_buffer.data_start +
                     (*malloc_buffer.tail * sizeof(struct Allocation)),
                 &alloc, sizeof(alloc));
-    (*malloc_buffer.tail) =
-        (*malloc_buffer.tail + 1) %
-        (malloc_buffer.data_size / sizeof(struct Allocation));
+    (*malloc_buffer.tail) = next_tail;
 }
 
 void SharedBuffer::write(Free const& free) {
+    uint32_t const next_tail = (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
+
+    if (next_tail == *free_buffer.head) {
+        *free_buffer.overflow = 1;
+        return;
+    }
+
     std::memcpy(free_buffer.data_start +
                     (*free_buffer.tail * sizeof(struct Free)),
                 &free, sizeof(struct Free));
-    (*free_buffer.tail) =
-        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
+    (*free_buffer.tail) = next_tail;
 }

@@ -40,6 +40,7 @@ class Buffer {
     // Ring buffer
     uint32_t* head;
     uint32_t* tail;
+    uint32_t* overflow;
     char* data_start; // char pointer to avoid dividing memory address with 4
 
     std::string mount_point;
