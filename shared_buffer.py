@@ -146,19 +146,25 @@ class Memtracker:
         del self.allocations[pointer]
 
     def write_log_file(self):
-        print("SKRIVER GALET")
+        if not self.log_file:
+            return
+
+        with open(self.log_file, "a") as f:
+            self.print_statistics(10, f)
 
     def print_size(
         self,
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
         type: Type,
+        file=None,
     ):
         for key in addresses:
             print(
                 f"Address: {hex(key)} - "
                 + type.name
-                + f": {function_statistics[key].sizes }"
+                + f": {function_statistics[key].sizes }",
+                file=file,
             )
 
     def print_num(
@@ -166,21 +172,23 @@ class Memtracker:
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
         type: Type,
+        file=None,
     ):
         for key in addresses:
             print(
                 f"Address: {hex(key)} - "
                 + type.name
-                + f" size: {function_statistics[key].amount}"
+                + f" size: {function_statistics[key].amount}",
+                file=file,
             )
 
-    def print_header(self, header: str):
+    def print_header(self, header: str, file=None):
         width = 20
-        print("=" * width)
-        print(header.center(width))
-        print("=" * width)
+        print("=" * width, file=file)
+        print(header.center(width), file=file)
+        print("=" * width, file=file)
 
-    def print_statistics(self, delay: int, file: str | None):
+    def print_statistics(self, delay: int, file=None):
         threading.Timer(delay, self.print_statistics, [delay]).start()
         current_most_allocations = sorted(
             self.current_function_allocations.keys(),
@@ -212,36 +220,46 @@ class Memtracker:
             key=lambda k: self.total_function_frees[k].sizes,
             reverse=True,
         )
-        self.print_header("Current allocation information")
-        print("Functions with most number allocations:")
+        self.print_header("Current allocation information", file)
+        print("Functions with most number allocations:", file=file)
         self.print_size(
-            current_most_allocations, self.current_function_allocations, Type.ALLOCATION
+            current_most_allocations,
+            self.current_function_allocations,
+            Type.ALLOCATION,
+            file,
         )
 
-        print("Functions with largest total allocation size:")
+        print("Functions with largest total allocation size:", file=file)
         self.print_num(
             current_largest_allocations,
             self.current_function_allocations,
             Type.ALLOCATION,
+            file,
         )
 
         self.print_header("Total allocation information")
         print("Functions with most number allocations:")
         self.print_size(
-            total_most_allocations, self.total_function_allocations, Type.ALLOCATION
+            total_most_allocations,
+            self.total_function_allocations,
+            Type.ALLOCATION,
+            file,
         )
 
-        print("Functions with largest total allocation size:")
+        print("Functions with largest total allocation size:", file=file)
         self.print_num(
-            total_largest_allocations, self.total_function_allocations, Type.ALLOCATION
+            total_largest_allocations,
+            self.total_function_allocations,
+            Type.ALLOCATION,
+            file,
         )
 
-        self.print_header("Total free information")
-        print("Functions with most number frees:")
-        self.print_size(total_most_frees, self.total_function_frees, Type.FREE)
+        self.print_header("Total free information", file)
+        print("Functions with most number frees:", file=file)
+        self.print_size(total_most_frees, self.total_function_frees, Type.FREE, file)
 
-        print("Functions with largest total free size:")
-        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
+        print("Functions with largest total free size:", file=file)
+        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE, file)
 
 
 class SharedBuffer:

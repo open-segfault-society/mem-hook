@@ -1,0 +1,82 @@
+====================
+Current allocation information
+====================
+Functions with most number allocations:
+Address: 0x7e6ed54f54f9 - ALLOCATION: 2000
+Address: 0x5645c0df11b9 - ALLOCATION: 2000
+Address: 0x7e6ed4f3d488 - ALLOCATION: 2000
+Address: 0x7e6ed4f3d54c - ALLOCATION: 2000
+Address: 0x5645c0df1085 - ALLOCATION: 2000
+Functions with largest total allocation size:
+Address: 0x7e6ed54f54f9 - ALLOCATION size: 20
+Address: 0x5645c0df11b9 - ALLOCATION size: 20
+Address: 0x7e6ed4f3d488 - ALLOCATION size: 20
+Address: 0x7e6ed4f3d54c - ALLOCATION size: 20
+Address: 0x5645c0df1085 - ALLOCATION size: 20
+Address: 0x7e6ed54f54f9 - ALLOCATION: 3900
+Address: 0x5645c0df11b9 - ALLOCATION: 3900
+Address: 0x7e6ed4f3d488 - ALLOCATION: 3900
+Address: 0x7e6ed4f3d54c - ALLOCATION: 3900
+Address: 0x5645c0df1085 - ALLOCATION: 3900
+Functions with largest total allocation size:
+Address: 0x7e6ed54f54f9 - ALLOCATION size: 39
+Address: 0x5645c0df11b9 - ALLOCATION size: 39
+Address: 0x7e6ed4f3d488 - ALLOCATION size: 39
+Address: 0x7e6ed4f3d54c - ALLOCATION size: 39
+Address: 0x5645c0df1085 - ALLOCATION size: 39
+====================
+Total free information
+====================
+Functions with most number frees:
+Address: 0x7e6ed54f559e - FREE: 1900
+Address: 0x5645c0df11d3 - FREE: 1900
+Address: 0x7e6ed4f3d488 - FREE: 1900
+Address: 0x7e6ed4f3d54c - FREE: 1900
+Address: 0x5645c0df1085 - FREE: 1900
+Functions with largest total free size:
+Address: 0x7e6ed54f559e - FREE size: 19
+Address: 0x5645c0df11d3 - FREE size: 19
+Address: 0x7e6ed4f3d488 - FREE size: 19
+Address: 0x7e6ed4f3d54c - FREE size: 19
+Address: 0x5645c0df1085 - FREE size: 19
+====================
+Current allocation information
+====================
+Functions with most number allocations:
+Address: 0x766f060924f9 - ALLOCATION: 1800
+Address: 0x648d263541b9 - ALLOCATION: 1800
+Address: 0x766f05a35488 - ALLOCATION: 1800
+Address: 0x766f05a3554c - ALLOCATION: 1800
+Address: 0x648d26354085 - ALLOCATION: 1800
+Functions with largest total allocation size:
+Address: 0x766f060924f9 - ALLOCATION size: 18
+Address: 0x648d263541b9 - ALLOCATION size: 18
+Address: 0x766f05a35488 - ALLOCATION size: 18
+Address: 0x766f05a3554c - ALLOCATION size: 18
+Address: 0x648d26354085 - ALLOCATION size: 18
+Address: 0x766f060924f9 - ALLOCATION: 3400
+Address: 0x648d263541b9 - ALLOCATION: 3400
+Address: 0x766f05a35488 - ALLOCATION: 3400
+Address: 0x766f05a3554c - ALLOCATION: 3400
+Address: 0x648d26354085 - ALLOCATION: 3400
+Functions with largest total allocation size:
+Address: 0x766f060924f9 - ALLOCATION size: 34
+Address: 0x648d263541b9 - ALLOCATION size: 34
+Address: 0x766f05a35488 - ALLOCATION size: 34
+Address: 0x766f05a3554c - ALLOCATION size: 34
+Address: 0x648d26354085 - ALLOCATION size: 34
+====================
+Total free information
+====================
+Functions with most number frees:
+Address: 0x766f0609259e - FREE: 1600
+Address: 0x648d263541d3 - FREE: 1600
+Address: 0x766f05a35488 - FREE: 1600
+Address: 0x766f05a3554c - FREE: 1600
+Address: 0x648d26354085 - FREE: 1600
+Functions with largest total free size:
+Address: 0x766f0609259e - FREE size: 16
+Address: 0x648d263541d3 - FREE size: 16
+Address: 0x766f05a35488 - FREE size: 16
+Address: 0x766f05a3554c - FREE size: 16
+Address: 0x648d26354085 - FREE size: 16
