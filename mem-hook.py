@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     compile_and_inject()
 
-    memtracker = shared_buffer.Memtracker()
+    memtracker = shared_buffer.Memtracker(cli.log_file)
     hook_manager = HookManager(cli.pid)
 
     # Register hooks
@@ -39,4 +39,4 @@ if __name__ == "__main__":
             while True:
                 shared_buffer.read(memtracker)
         except KeyboardInterrupt:
-            pass
+            memtracker.write_log_file()

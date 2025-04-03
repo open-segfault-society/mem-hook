@@ -64,7 +64,8 @@ class FunctionStatistics:
 
 
 class Memtracker:
-    def __init__(self):
+    def __init__(self, log_file: str | None):
+        self.log_file = log_file
         self.allocations = {}
         self.total_allocation_size = 0
         self.total_allocations = 0
@@ -144,6 +145,9 @@ class Memtracker:
 
         del self.allocations[pointer]
 
+    def write_log_file(self):
+        print("SKRIVER GALET")
+
     def print_size(
         self,
         addresses: list[int],
@@ -176,7 +180,7 @@ class Memtracker:
         print(header.center(width))
         print("=" * width)
 
-    def print_statistics(self, delay):
+    def print_statistics(self, delay: int, file: str | None):
         threading.Timer(delay, self.print_statistics, [delay]).start()
         current_most_allocations = sorted(
             self.current_function_allocations.keys(),

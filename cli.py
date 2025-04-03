@@ -142,10 +142,12 @@ try:
     else:
         filter_size_range = []
 
+    print(args)
     print_frequency = args.print_frequency
     outputfile = args.output_file
     print_frequency = args.print_frequency
     read_frequency = args.read_frequency
+    log_file = args.output_file
 except Exception as e:
     print(f"Error while parsing input arguments: {e}")
     exit(1)
