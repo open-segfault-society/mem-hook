@@ -142,7 +142,6 @@ try:
     else:
         filter_size_range = []
 
-    print(args)
     print_frequency = args.print_frequency
     outputfile = args.output_file
     print_frequency = args.print_frequency
