@@ -149,12 +149,12 @@ def parse_buffer_size(args) -> BufferSize:
     return buffer
 
 
-parse_buffer_size(args)
 
 
 try:
     hook_functions = args.hook_function
     pid = int(args.pid[0])
+    buffer_sizes = parse_buffer_size(args)
 
     if args.filter_size:
         filter_size = list(map(int, args.filter_size))

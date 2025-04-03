@@ -29,8 +29,8 @@ struct Free {
 
 class Buffer {
   public:
-    Buffer(std::string mount_point, uint32_t num_allocations,
-           uint32_t head_size, uint32_t data_size, uint32_t buffer_size);
+    Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
+           uint32_t buffer_size);
     ~Buffer();
 
     // Shared memory
@@ -42,8 +42,6 @@ class Buffer {
     uint32_t* tail;
     char* data_start; // char pointer to avoid dividing memory address with 4
 
-    std::string mount_point;
-    uint32_t num_allocations;
     uint32_t head_size;
     uint32_t data_size;
     uint32_t buffer_size;

@@ -1,8 +1,6 @@
 #include "shared_buffer.h"
 #include <cstring>
 #include <fcntl.h>
-#include <iostream>
-#include <ostream>
 #include <sys/mman.h> // For shm_open, mmap
 #include <unistd.h>   // For close
 
@@ -29,13 +27,12 @@ Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
 //       Buffer
 // ===================
 
-Buffer::Buffer(std::string mount_point, uint32_t num_allocations,
-               uint32_t head_size, uint32_t data_size, uint32_t buffer_size)
-    : num_allocations{num_allocations}, head_size{head_size},
-      data_size{data_size}, buffer_size{buffer_size} {
+Buffer::Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
+               uint32_t buffer_size)
+    : head_size{head_size}, data_size{data_size}, buffer_size{buffer_size} {
 
     // Open the existing shared memory object
-    fd = shm_open(mount_point.c_str(), O_CREAT | O_RDWR, 0666);
+    fd = shm_open(mount_point, O_CREAT | O_RDWR, 0666);
     if (fd == -1) {
         perror("shm_open");
         return;
@@ -69,11 +66,8 @@ Buffer::~Buffer() {
     close(fd);
 }
 
-SharedBuffer::SharedBuffer()
-    : malloc_buffer("/mem_hook_alloc", 1000, 8, sizeof(Allocation) * 1000,
-                    8 + sizeof(Allocation) * 1000),
-      free_buffer("/mem_hook_free", 1000, 8, sizeof(Free) * 1000,
-                  8 + sizeof(Free) * 1000) {};
+SharedBuffer::SharedBuffer() : 
+    <<<CONSTRUCTORS>>> {};
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup
