@@ -54,9 +54,11 @@ Buffer::Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
 
     head = reinterpret_cast<uint32_t*>(memory);
     tail = reinterpret_cast<uint32_t*>(head + 1);
+    overflow = reinterpret_cast<uint32_t*>(head + 2);
 
     *head = 0;
     *tail = 0;
+    *overflow = 0;
     data_start = reinterpret_cast<char*>(memory) + head_size;
 }
 
@@ -76,18 +78,31 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Allocation const& alloc) {
+    uint32_t const next_tail =
+        (*malloc_buffer.tail + 1) %
+        (malloc_buffer.data_size / sizeof(struct Allocation));
+
+    if (next_tail == *malloc_buffer.head) {
+        *malloc_buffer.overflow = 1;
+        return;
+    }
+
     std::memcpy(malloc_buffer.data_start +
                     (*malloc_buffer.tail * sizeof(struct Allocation)),
                 &alloc, sizeof(alloc));
-    (*malloc_buffer.tail) =
-        (*malloc_buffer.tail + 1) %
-        (malloc_buffer.data_size / sizeof(struct Allocation));
+    (*malloc_buffer.tail) = next_tail;
 }
 
 void SharedBuffer::write(Free const& free) {
+    uint32_t const next_tail = (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
+
+    if (next_tail == *free_buffer.head) {
+        *free_buffer.overflow = 1;
+        return;
+    }
+
     std::memcpy(free_buffer.data_start +
                     (*free_buffer.tail * sizeof(struct Free)),
                 &free, sizeof(struct Free));
-    (*free_buffer.tail) =
-        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
+    (*free_buffer.tail) = next_tail;
 }

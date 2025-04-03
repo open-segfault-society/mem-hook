@@ -58,7 +58,7 @@ class CodeEntryFactory:
     @staticmethod
     def malloc_constructor(type: str, size: int, last: bool) -> str:
 
-        snippet = 'malloc_buffer("/mem_hook_alloc", 8, {}, 8 + {}),'
+        snippet = 'malloc_buffer("/mem_hook_alloc", 12, {}, 12 + {}),'
 
         if type == "w":
             snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
@@ -82,7 +82,7 @@ class CodeEntryFactory:
 
     @staticmethod
     def free_constructor(type: str, size: int, last: bool) -> str:
-        snippet = 'free_buffer("/mem_hook_free", 8, {}, 8 + {}),'
+        snippet = 'free_buffer("/mem_hook_free", 12, {}, 12 + {}),'
 
         if type == "w":
             snippet = snippet.format("sizeof(Free) * " + str(size), {})
