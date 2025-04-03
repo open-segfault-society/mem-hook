@@ -5,6 +5,7 @@ from collections import defaultdict
 import threading
 from dataclasses import dataclass
 from enum import Enum
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.ticker as ticker
@@ -70,25 +71,69 @@ class FunctionStatistics:
 
 class Graph:
     def __init__(self):
-        self.fig, self.ax = plt.subplots()
+        matplotlib.use("TkAgg")  # Use backend that supports scrolling
         self.x_data, self.y_data = [], []
+        self.allocs: list[tuple[float, int]] = []
+        self.frees: list[tuple[float, int]] = []
+
+        self.fig, self.ax = plt.subplots()
         self.line, = self.ax.plot([], [])
-        plt.ion()
+        self.alloc_scatter = self.ax.scatter([], [], marker='^', color='g', label="alloc", s=25)
+        self.free_scatter = self.ax.scatter([], [], marker='v', color='r', label="free", s=25)
+        self.alloc_scatter.set_zorder(999)
+        self.free_scatter.set_zorder(999)
+
+        self.redraw = True
+        self.autoscroll = False
+
+        self.ax.set_navigate(True)  # Enable panning and zooming
+        plt.ion()  # Set interactive mode
+        plt.legend()
         plt.show(block=False)
 
     def update(self):
-        self.line.set_data(self.x_data, self.y_data)
-        self.ax.relim()
-        self.ax.autoscale_view()
+        # Scroll the x-axis dynamically
+        min_x = 0
+        max_x = 0
+        window_size = 32
 
-        self.fig.canvas.draw()  # Redraw figure
+        if len(self.x_data) > 1:
+            min_x = min(self.x_data)
+            max_x = max(self.x_data)
+
+            # +1 Because of weird rounding stuff
+            # print(f"{max_x} >= {self.ax.get_xlim()[1]}")
+
+        if self.redraw:
+            self.line.set_data(self.x_data, self.y_data)
+            self.ax.relim()
+            self.ax.autoscale_view()
+
+            if self.allocs:
+                self.alloc_scatter.set_offsets(self.allocs)
+            if self.frees:
+                self.free_scatter.set_offsets(self.frees)
+
+            if self.autoscroll:
+                self.ax.set_xlim(max(min_x, max_x - window_size), max_x)
+
+            self.fig.canvas.draw()  # Redraw figure
+            self.redraw = False
+
+        self.autoscroll = max_x <= self.ax.get_xlim()[1]
         self.fig.canvas.flush_events()  # Process GUI events
 
-    def add_x(self, data):
-        self.x_data.append(data)
+    def add_event(self, time: float, size: int, operation: Type):
+        self.x_data.append(time)
+        self.y_data.append(size)
 
-    def add_y(self, data):
-        self.y_data.append(data)
+        match operation:
+            case Type.ALLOCATION:
+                self.allocs.append((time, size))
+            case Type.FREE:
+                self.frees.append((time, size))
+
+        self.redraw = True
 
 
 class Memtracker:
@@ -130,8 +175,8 @@ class Memtracker:
         self.total_allocations += 1
 
         if self.graph is not None:
-            self.graph.add_x(round(allocation.time - self.time_start, 2))
-            self.graph.add_y(self.total_allocation_size)
+            alloc_time = (round(allocation.time - self.time_start, 2))
+            self.graph.add_event(alloc_time, self.total_allocation_size, Type.ALLOCATION)
             self.graph.update()
 
         # Update some statistics
@@ -155,8 +200,8 @@ class Memtracker:
         self.total_frees += 1
 
         if self.graph is not None:
-            self.graph.add_x(round(free.time - self.time_start, 2))
-            self.graph.add_y(self.total_allocation_size)
+            free_time = (round(free.time - self.time_start, 2))
+            self.graph.add_event(free_time, self.total_allocation_size, Type.FREE)
             self.graph.update()
 
         # Update some statistics
