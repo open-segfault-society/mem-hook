@@ -30,7 +30,7 @@ class Allocation:
         self,
         pointer: int,
         size: int,
-        time: int,
+        time: float,
         backtrace_size: int,
         backtraces: list[int],
     ):
@@ -49,7 +49,7 @@ class Free:
     def __init__(
         self,
         pointer: int,
-        time: int,
+        time: float,
         backtrace_size: int,
         backtraces: list[int],
     ):
@@ -70,13 +70,16 @@ class FunctionStatistics:
 
 
 class Graph:
+    WINDOW_WIDTH = 800
+    WINDOW_HEIGHT= 600
+
     def __init__(self):
         matplotlib.use("TkAgg")  # Use backend that supports scrolling
         self.x_data, self.y_data = [], []
         self.allocs: list[tuple[float, int]] = []
         self.frees: list[tuple[float, int]] = []
 
-        self.fig, self.ax = plt.subplots()
+        self.fig, self.ax = plt.subplots(figsize=(self.WINDOW_WIDTH / 100, self.WINDOW_HEIGHT / 100), dpi=100)
         self.line, = self.ax.plot([], [])
         self.alloc_scatter = self.ax.scatter([], [], marker='^', color='g', label="alloc", s=25)
         self.free_scatter = self.ax.scatter([], [], marker='v', color='r', label="free", s=25)
@@ -87,6 +90,7 @@ class Graph:
         self.autoscroll = False
 
         self.ax.set_navigate(True)  # Enable panning and zooming
+        self.ax.yaxis.set_major_formatter(ticker.FuncFormatter(self._size_format))
         plt.ion()  # Set interactive mode
         plt.legend()
         plt.show(block=False)
@@ -100,9 +104,6 @@ class Graph:
         if len(self.x_data) > 1:
             min_x = min(self.x_data)
             max_x = max(self.x_data)
-
-            # +1 Because of weird rounding stuff
-            # print(f"{max_x} >= {self.ax.get_xlim()[1]}")
 
         if self.redraw:
             self.line.set_data(self.x_data, self.y_data)
@@ -134,6 +135,14 @@ class Graph:
                 self.frees.append((time, size))
 
         self.redraw = True
+
+    def _size_format(self, x, pos):
+        # Define the size units
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if x < 1024.0:
+                return f"{x:.1f} {unit}"
+            x /= 1024.0
+        return f"{x:.1f} PB"
 
 
 class Memtracker:
@@ -176,6 +185,7 @@ class Memtracker:
 
         if self.graph is not None:
             alloc_time = (round(allocation.time - self.time_start, 2))
+            print(allocation.time)
             self.graph.add_event(alloc_time, self.total_allocation_size, Type.ALLOCATION)
             self.graph.update()
 
@@ -423,7 +433,7 @@ class SharedBuffer:
 
         backtraces = self.read_backtraces(start_address + 24, backtrace_size)
 
-        return Allocation(pointer, size, int(current_time), backtrace_size, backtraces)
+        return Allocation(pointer, size, current_time, backtrace_size, backtraces)
 
     def read_free(self, head: int) -> Free:
         # assumes 8 bytes pointers aka 64-bit system
@@ -443,7 +453,7 @@ class SharedBuffer:
             start_address + 16, backtrace_size, malloc=False
         )
 
-        return Free(pointer, int(current_time), backtrace_size, backtraces)
+        return Free(pointer, current_time, backtrace_size, backtraces)
 
     def read(self, memtracker: Memtracker):
         # =================
