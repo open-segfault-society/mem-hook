@@ -172,6 +172,7 @@ try:
     outputfile = args.output_file
     print_frequency = args.print_frequency
     read_frequency = args.read_frequency
+    log_file = args.output_file
 
     if print_frequency < 0:
         print(f"Print frequency {print_frequency} is less than zero, changed to 5.")
