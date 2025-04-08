@@ -15,6 +15,10 @@ struct Allocation {
 
     Allocation(void* alloc_address, uint32_t size, uint32_t time,
                uint32_t backtrace_size, void* (&buffer)[BUFFER_SIZE]);
+    Allocation(void* alloc_address, uint32_t size, uint32_t time,
+               std::array<void*, 20> const& backtrace_buffer);
+      
+      
 };
 
 struct Free {
@@ -29,8 +33,8 @@ struct Free {
 
 class Buffer {
   public:
-    Buffer(std::string mount_point, uint32_t num_allocations,
-           uint32_t head_size, uint32_t data_size, uint32_t buffer_size);
+    Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
+           uint32_t buffer_size);
     ~Buffer();
 
     // Shared memory
@@ -40,10 +44,9 @@ class Buffer {
     // Ring buffer
     uint32_t* head;
     uint32_t* tail;
+    uint32_t* overflow;
     char* data_start; // char pointer to avoid dividing memory address with 4
 
-    std::string mount_point;
-    uint32_t num_allocations;
     uint32_t head_size;
     uint32_t data_size;
     uint32_t buffer_size;

@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <algorithm>
 
 
 /**
@@ -36,5 +37,18 @@ inline std::array<uintptr_t, N> walk_stack_fp(std::size_t skip) {
     }
 
     return stack;
+}
+
+template <typename T, std::size_t N>
+inline std::array<T, N> walk_stack_fp(std::size_t skip) {
+    std::array<uintptr_t, N> const trace {walk_stack_fp<20>(skip)};
+    std::array<void*, 20> backtrace {};
+    std::transform(
+        trace.begin(),
+        trace.end(),
+        backtrace.begin(),
+        [](uintptr_t ptr) { return reinterpret_cast<T>(ptr); }
+    );
+    return backtrace;
 }
 

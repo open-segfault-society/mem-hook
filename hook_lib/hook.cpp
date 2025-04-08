@@ -4,6 +4,8 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <iostream>
+#include "backtrace.h"
+#include <algorithm>
 
 SharedBuffer buffer{};
 
@@ -24,6 +26,7 @@ extern "C" void* malloc_hook(uint32_t size) {
     <<<MALLOC_FILTER>>>
 
     uint32_t backtrace_size = backtrace(malloc_backtrace_buffer, BUFFER_SIZE);
+
     Allocation alloc{ptr, size, 0, backtrace_size, malloc_backtrace_buffer};
     buffer.write(alloc);
     return ptr;

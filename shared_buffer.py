@@ -2,12 +2,13 @@ import mmap
 import os
 import threading
 import time
+import cli
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 
 # Constants
-HEAD_SIZE: int = 8
+HEAD_SIZE: int = 12
 ALLOCATION_SIZE: int = (
     24 + 8 * 20
 )  # Accounts for inner padding, currently no padding between allocations
@@ -73,6 +74,9 @@ class Memtracker:
         self.total_free_size = 0
         self.total_frees = 0
         self.all_allocations = {}
+
+        self.malloc_overflow = 0
+        self.free_overflow = 0
 
         # Saves the number and sizes of allocation per function (address)
         # from its backtrace
@@ -271,8 +275,12 @@ class Memtracker:
             key=lambda k: self.total_function_frees[k].sizes,
             reverse=True,
         )
-        self.print_header("Current allocation information", file)
-        print("Functions with most number allocations:", file=file)
+        if (self.malloc_overflow):
+            print("MALLOC BUFFER OVERFLOW!")
+        if (self.free_overflow):
+            print("FREE BUFFER OVERFLOW!")
+        self.print_header("Current allocation information")
+        print("Functions with most number allocations:")
         self.print_size(
             current_most_allocations,
             self.current_function_allocations,
@@ -309,8 +317,9 @@ class Memtracker:
         print("Functions with most number frees:", file=file)
         self.print_size(total_most_frees, self.total_function_frees, Type.FREE, file)
 
-        print("Functions with largest total free size:", file=file)
-        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE, file)
+        print("Functions with largest total free size:")
+        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
+        print()
 
 
 class SharedBuffer:
@@ -331,6 +340,9 @@ class SharedBuffer:
         # Get the size of the shared memory object by using fstat
         self.malloc_size = os.fstat(self.malloc_fd).st_size
         self.free_size = os.fstat(self.free_fd).st_size
+
+        self.malloc_entries = self.malloc_size // ALLOCATION_SIZE
+        self.free_entries = self.free_size // FREE_SIZE
 
         # Map the shared memory object to the Python process's memory space
         try:
@@ -426,16 +438,22 @@ class SharedBuffer:
         return Free(pointer, current_time, backtrace_size, backtraces)
 
     def read(self, memtracker: Memtracker):
+        malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
+        malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
+        memtracker.malloc_overflow = int.from_bytes(self.malloc_mem[8:12], byteorder="little")
+
+        free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
+        free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
+        memtracker.free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
+
         # =================
         #       MALLOC
         # =================
-        malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
-        malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
             memtracker.add_allocation(allocation)
-            malloc_head = (malloc_head + 1) % 1000
+            malloc_head = (malloc_head + 1) % self.malloc_entries
 
         self.malloc_mem[0:4] = malloc_head.to_bytes(4, byteorder="little")
 
@@ -443,15 +461,12 @@ class SharedBuffer:
         #       FREE
         # =================
 
-        free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
-        free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
-
         while free_head != free_tail:
             free = self.read_free(free_head)
             # add_free must be called before remove_allocation
             # since we use info from allocation to get free size
             memtracker.add_free(free)
             memtracker.remove_allocation(free.pointer)
-            free_head = (free_head + 1) % 1000
+            free_head = (free_head + 1) % self.free_entries
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
