@@ -134,7 +134,6 @@ class Memtracker:
         try:
             allocation = self.allocations[pointer]
         except KeyError:
-            print("miss")
             # Allocation was probably made before hook got injected
             # or we missed it
             return
