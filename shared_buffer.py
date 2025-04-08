@@ -24,7 +24,7 @@ class Allocation:
         self,
         pointer: int,
         size: int,
-        time: int,
+        time: float,
         backtrace_size: int,
         backtraces: list[int],
     ):
@@ -43,7 +43,7 @@ class Free:
     def __init__(
         self,
         pointer: int,
-        time: int,
+        time: float,
         backtrace_size: int,
         backtraces: list[int],
     ):
@@ -72,6 +72,7 @@ class Memtracker:
         self.frees = {}
         self.total_free_size = 0
         self.total_frees = 0
+        self.all_allocations = {}
 
         # Saves the number and sizes of allocation per function (address)
         # from its backtrace
@@ -92,6 +93,7 @@ class Memtracker:
     def add_allocation(self, allocation: Allocation):
         # TODO: nullptr? Could they be some edge case?
         self.allocations[allocation.pointer] = allocation
+        self.all_allocations[allocation.pointer] = allocation
         self.total_allocation_size += allocation.size
         self.total_allocations += 1
 
@@ -106,7 +108,7 @@ class Memtracker:
 
     def add_free(self, free: Free):
         # TODO: Do we care about saving what pointers we've freed? They can and most likely will be reused
-        # self.frees[free.pointer] = free
+        self.frees[free.pointer] = free
 
         try:
             size = self.allocations[free.pointer].size
@@ -145,11 +147,60 @@ class Memtracker:
 
         del self.allocations[pointer]
 
+    def log_every_event(self, file):
+
+        self.print_header("Every allocation/free", file)
+
+        all_event = list(self.frees.values()) + list(self.all_allocations.values())
+        all_event = sorted(all_event, key=lambda x: x.time)
+
+        for event in all_event:
+
+            if isinstance(event, Allocation):
+                print(f"Allocation of size {event.size} allocated at time: {event.time}.", file=file)
+                print(f"Backtrace:", file=file)
+                backtrace_str = ""
+                for backtrace in event.backtraces:
+                    backtrace_str += str(backtrace) + " "
+                backtrace_str += "\n"
+                print(backtrace_str, file=file)
+
+            if isinstance(event, Free):
+                try:
+                    size = self.allocations[event.pointer].size
+                    self.total_free_size += size
+                    print(f"Free of size {size} freed at time: {event.time}.", file=file)
+                except KeyError:
+                    print(f"Free of unknown size freed at time: {event.time}.", file=file)
+
+                print(f"Backtrace:", file=file)
+                backtrace_str = ""
+                for backtrace in event.backtraces:
+                    backtrace_str += str(backtrace) + " "
+                backtrace_str += "\n"
+                print(backtrace_str, file=file)
+
+        self.print_header("Potential leaks", file)
+        leaks = list(self.all_allocations.values())
+        leaks = sorted(leaks, key=lambda x: x.time)
+
+        for leak in leaks:
+
+            print(f"Allocation of size {leak.size} allocated at time: {leak.time}.", file=file)
+            print(f"Backtrace:", file=file)
+            backtrace_str = ""
+            for backtrace in leak.backtraces:
+                backtrace_str += str(backtrace) + " "
+            backtrace_str += "\n"
+            print(backtrace_str, file=file)
+
+
     def write_log_file(self):
         if not self.log_file:
             return
 
         with open(self.log_file, "a") as f:
+            self.log_every_event(f)
             self.print_statistics(10, f)
 
     def print_size(
@@ -352,7 +403,7 @@ class SharedBuffer:
 
         backtraces = self.read_backtraces(start_address + 24, backtrace_size)
 
-        return Allocation(pointer, size, int(current_time), backtrace_size, backtraces)
+        return Allocation(pointer, size, current_time, backtrace_size, backtraces)
 
     def read_free(self, head: int) -> Free:
         # assumes 8 bytes pointers aka 64-bit system
@@ -372,7 +423,7 @@ class SharedBuffer:
             start_address + 16, backtrace_size, malloc=False
         )
 
-        return Free(pointer, int(current_time), backtrace_size, backtraces)
+        return Free(pointer, current_time, backtrace_size, backtraces)
 
     def read(self, memtracker: Memtracker):
         # =================
