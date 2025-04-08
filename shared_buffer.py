@@ -73,6 +73,9 @@ class Memtracker:
         self.total_free_size = 0
         self.total_frees = 0
 
+        self.malloc_overflow = 0
+        self.free_overflow = 0
+
         # Saves the number and sizes of allocation per function (address)
         # from its backtrace
         # Key is address, value is list containing the total size and total allocations
@@ -209,6 +212,10 @@ class Memtracker:
             key=lambda k: self.total_function_frees[k].sizes,
             reverse=True,
         )
+        if (self.malloc_overflow):
+            print("MALLOC BUFFER OVERFLOW!")
+        if (self.free_overflow):
+            print("FREE BUFFER OVERFLOW!")
         self.print_header("Current allocation information")
         print("Functions with most number allocations:")
         self.print_size(
@@ -239,6 +246,7 @@ class Memtracker:
 
         print("Functions with largest total free size:")
         self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
+        print()
 
 
 class SharedBuffer:
@@ -362,7 +370,7 @@ class SharedBuffer:
         # =================
         malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
         malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
-        malloc_overflow = int.from_bytes(self.malloc_mem[8:12], byteorder="little")
+        memtracker.malloc_overflow = int.from_bytes(self.malloc_mem[8:12], byteorder="little")
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
@@ -377,7 +385,7 @@ class SharedBuffer:
 
         free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
         free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
-        free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
+        memtracker.free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
 
         while free_head != free_tail:
             free = self.read_free(free_head)
