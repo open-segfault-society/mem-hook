@@ -134,6 +134,7 @@ class Memtracker:
         try:
             allocation = self.allocations[pointer]
         except KeyError:
+            print("miss")
             # Allocation was probably made before hook got injected
             # or we missed it
             return
@@ -365,12 +366,17 @@ class SharedBuffer:
         return Free(pointer, int(current_time), backtrace_size, backtraces)
 
     def read(self, memtracker: Memtracker):
-        # =================
-        #       MALLOC
-        # =================
         malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
         malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
         memtracker.malloc_overflow = int.from_bytes(self.malloc_mem[8:12], byteorder="little")
+
+        free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
+        free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
+        memtracker.free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
+
+        # =================
+        #       MALLOC
+        # =================
 
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
@@ -382,10 +388,6 @@ class SharedBuffer:
         # =================
         #       FREE
         # =================
-
-        free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
-        free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
-        memtracker.free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
 
         while free_head != free_tail:
             free = self.read_free(free_head)
