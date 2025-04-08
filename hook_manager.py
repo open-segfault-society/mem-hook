@@ -134,7 +134,7 @@ class HookManager:
     def _get_plt_offset(self, func_name: str) -> int:
         """Get the offset of the function entry in PLT"""
         # NOTE: We're extracting the comment in objdump here, it might be better to calculate it explicitly
-        obj_dump_match = re.search(rf"#\s(\d+)\s<{func_name}", self.obj_dump)
+        obj_dump_match = re.search(rf"#\s([a-fA-F\d]+)\s<{func_name}", self.obj_dump)
 
         if not obj_dump_match:
             raise ValueError(f"Could not find {func_name} entry in PLT")
