@@ -2,6 +2,7 @@ import mmap
 import os
 import threading
 import time
+import cli
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -259,6 +260,9 @@ class SharedBuffer:
         self.malloc_size = os.fstat(self.malloc_fd).st_size
         self.free_size = os.fstat(self.free_fd).st_size
 
+        self.malloc_entries = self.malloc_size // ALLOCATION_SIZE
+        self.free_entries = self.free_size // FREE_SIZE
+
         # Map the shared memory object to the Python process's memory space
         try:
             self.malloc_mem = mmap.mmap(
@@ -363,7 +367,7 @@ class SharedBuffer:
         while malloc_head != malloc_tail:
             allocation = self.read_allocation(malloc_head)
             memtracker.add_allocation(allocation)
-            malloc_head = (malloc_head + 1) % 1000
+            malloc_head = (malloc_head + 1) % self.malloc_entries
 
         self.malloc_mem[0:4] = malloc_head.to_bytes(4, byteorder="little")
 
@@ -381,6 +385,6 @@ class SharedBuffer:
             # since we use info from allocation to get free size
             memtracker.add_free(free)
             memtracker.remove_allocation(free.pointer)
-            free_head = (free_head + 1) % 1000
+            free_head = (free_head + 1) % self.free_entries
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
