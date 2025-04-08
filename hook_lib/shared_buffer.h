@@ -15,6 +15,10 @@ struct Allocation {
 
     Allocation(void* alloc_address, uint32_t size, uint32_t time,
                uint32_t backtrace_size, void* (&buffer)[BUFFER_SIZE]);
+    Allocation(void* alloc_address, uint32_t size, uint32_t time,
+               std::array<void*, 20> const& backtrace_buffer);
+      
+      
 };
 
 struct Free {

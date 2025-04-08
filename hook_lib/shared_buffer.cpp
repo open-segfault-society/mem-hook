@@ -17,6 +17,10 @@ Allocation::Allocation(void* alloc_address, uint32_t size, uint32_t time,
     std::copy(std::begin(buffer), std::end(buffer), backtrace_buffer.begin());
 }
 
+Allocation::Allocation(void* alloc_address, uint32_t size, uint32_t time,
+                       std::array<void*, 20> const& backtrace_buffer)
+    : address{alloc_address}, size{size}, time{time}, backtrace_buffer{backtrace_buffer} {};
+
 Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
            void* (&buffer)[20])
     : address{free_ptr}, time{time}, backtrace_size{backtrace_size} {
