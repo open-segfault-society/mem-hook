@@ -25,7 +25,7 @@ class Allocation:
         self,
         pointer: int,
         size: int,
-        time: int,
+        time: float,
         backtrace_size: int,
         backtraces: list[int],
     ):
@@ -44,7 +44,7 @@ class Free:
     def __init__(
         self,
         pointer: int,
-        time: int,
+        time: float,
         backtrace_size: int,
         backtraces: list[int],
     ):
@@ -65,13 +65,15 @@ class FunctionStatistics:
 
 
 class Memtracker:
-    def __init__(self):
+    def __init__(self, log_file: str | None):
+        self.log_file = log_file
         self.allocations = {}
         self.total_allocation_size = 0
         self.total_allocations = 0
         self.frees = {}
         self.total_free_size = 0
         self.total_frees = 0
+        self.all_allocations = {}
 
         self.malloc_overflow = 0
         self.free_overflow = 0
@@ -95,6 +97,7 @@ class Memtracker:
     def add_allocation(self, allocation: Allocation):
         # TODO: nullptr? Could they be some edge case?
         self.allocations[allocation.pointer] = allocation
+        self.all_allocations[allocation.pointer] = allocation
         self.total_allocation_size += allocation.size
         self.total_allocations += 1
 
@@ -109,7 +112,7 @@ class Memtracker:
 
     def add_free(self, free: Free):
         # TODO: Do we care about saving what pointers we've freed? They can and most likely will be reused
-        # self.frees[free.pointer] = free
+        self.frees[free.pointer] = free
 
         try:
             size = self.allocations[free.pointer].size
@@ -148,17 +151,61 @@ class Memtracker:
 
         del self.allocations[pointer]
 
+    def log_every_event(self, file):
+
+        self.print_header("Every event", file)
+
+        all_event = list(self.frees.values()) + list(self.all_allocations.values())
+        all_event = sorted(all_event, key=lambda x: x.time)
+
+        for event in all_event:
+
+            if isinstance(event, Allocation):
+                print(f"Allocation of size {event.size} at time: {event.time}.", file=file)
+                print(f"Backtrace:", file=file)
+                backtrace_str = ""
+                for backtrace in event.backtraces:
+                    backtrace_str += str(hex(backtrace)) + " "
+                backtrace_str += "\n"
+                print(backtrace_str, file=file)
+
+            if isinstance(event, Free):
+                try:
+                    size = self.allocations[event.pointer].size
+                    self.total_free_size += size
+                    print(f"Free of size {size} at time: {event.time}.", file=file)
+                except KeyError:
+                    print(f"Free of size unknown at time: {event.time}.", file=file)
+
+                print(f"Backtrace:", file=file)
+                backtrace_str = ""
+                for backtrace in event.backtraces:
+                    backtrace_str += str(hex(backtrace)) + " "
+                backtrace_str += "\n"
+                print(backtrace_str, file=file)
+
+
+    def write_log_file(self):
+        if not self.log_file:
+            return
+
+        with open(self.log_file, "a") as f:
+            self.log_every_event(f)
+            self.print_statistics(10, f)
+
     def print_size(
         self,
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
         type: Type,
+        file=None,
     ):
         for key in addresses:
             print(
                 f"Address: {hex(key)} - "
                 + type.name
-                + f": {function_statistics[key].sizes }"
+                + f": {function_statistics[key].sizes }",
+                file=file,
             )
 
     def print_num(
@@ -166,21 +213,23 @@ class Memtracker:
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
         type: Type,
+        file=None,
     ):
         for key in addresses:
             print(
                 f"Address: {hex(key)} - "
                 + type.name
-                + f" size: {function_statistics[key].amount}"
+                + f" size: {function_statistics[key].amount}",
+                file=file,
             )
 
-    def print_header(self, header: str):
+    def print_header(self, header: str, file=None):
         width = 20
-        print("=" * width)
-        print(header.center(width))
-        print("=" * width)
+        print("=" * width, file=file)
+        print(header.center(width), file=file)
+        print("=" * width, file=file)
 
-    def print_statistics(self, delay):
+    def print_statistics(self, delay: int, file=None):
         threading.Timer(delay, self.print_statistics, [delay]).start()
         current_most_allocations = sorted(
             self.current_function_allocations.keys(),
@@ -219,30 +268,40 @@ class Memtracker:
         self.print_header("Current allocation information")
         print("Functions with most number allocations:")
         self.print_size(
-            current_most_allocations, self.current_function_allocations, Type.ALLOCATION
+            current_most_allocations,
+            self.current_function_allocations,
+            Type.ALLOCATION,
+            file,
         )
 
-        print("Functions with largest total allocation size:")
+        print("Functions with largest total allocation size:", file=file)
         self.print_num(
             current_largest_allocations,
             self.current_function_allocations,
             Type.ALLOCATION,
+            file,
         )
 
         self.print_header("Total allocation information")
         print("Functions with most number allocations:")
         self.print_size(
-            total_most_allocations, self.total_function_allocations, Type.ALLOCATION
+            total_most_allocations,
+            self.total_function_allocations,
+            Type.ALLOCATION,
+            file,
         )
 
-        print("Functions with largest total allocation size:")
+        print("Functions with largest total allocation size:", file=file)
         self.print_num(
-            total_largest_allocations, self.total_function_allocations, Type.ALLOCATION
+            total_largest_allocations,
+            self.total_function_allocations,
+            Type.ALLOCATION,
+            file,
         )
 
-        self.print_header("Total free information")
-        print("Functions with most number frees:")
-        self.print_size(total_most_frees, self.total_function_frees, Type.FREE)
+        self.print_header("Total free information", file)
+        print("Functions with most number frees:", file=file)
+        self.print_size(total_most_frees, self.total_function_frees, Type.FREE, file)
 
         print("Functions with largest total free size:")
         self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
@@ -342,7 +401,7 @@ class SharedBuffer:
 
         backtraces = self.read_backtraces(start_address + 24, backtrace_size)
 
-        return Allocation(pointer, size, int(current_time), backtrace_size, backtraces)
+        return Allocation(pointer, size, current_time, backtrace_size, backtraces)
 
     def read_free(self, head: int) -> Free:
         # assumes 8 bytes pointers aka 64-bit system
@@ -362,7 +421,7 @@ class SharedBuffer:
             start_address + 16, backtrace_size, malloc=False
         )
 
-        return Free(pointer, int(current_time), backtrace_size, backtraces)
+        return Free(pointer, current_time, backtrace_size, backtraces)
 
     def read(self, memtracker: Memtracker):
         malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
