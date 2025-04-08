@@ -14,11 +14,8 @@ struct Allocation {
     std::array<void*, 20> backtrace_buffer; // Actual backtrace
 
     Allocation(void* alloc_address, uint32_t size, uint32_t time,
-               uint32_t backtrace_size, void* (&buffer)[BUFFER_SIZE]);
-    Allocation(void* alloc_address, uint32_t size, uint32_t time,
+               uint32_t backtrace_size,
                std::array<void*, 20> const& backtrace_buffer);
-      
-      
 };
 
 struct Free {
@@ -28,7 +25,7 @@ struct Free {
     std::array<void*, 20> backtrace_buffer; // Actual backtrace
 
     Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
-         void* (&buffer)[BUFFER_SIZE]);
+         std::array<void*, 20> const& backtrace_buffer);
 };
 
 class Buffer {

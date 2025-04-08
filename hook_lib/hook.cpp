@@ -1,11 +1,10 @@
+#include "backtrace.h"
 #include "shared_buffer.h"
 #include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <iostream>
-#include "backtrace.h"
-#include <algorithm>
 
 SharedBuffer buffer{};
 
@@ -13,28 +12,30 @@ SharedBuffer buffer{};
 void* (*malloc_real)(size_t) = nullptr;
 void (*free_real)(void*) = nullptr;
 
-// Backtrace related values
-void* malloc_backtrace_buffer[BUFFER_SIZE];
-void* free_backtrace_buffer[BUFFER_SIZE];
-
 // The hook function for malloc
 extern "C" void* malloc_hook(uint32_t size) {
     void* const ptr{malloc_real(size)}; // Call the original malloc
 
     <<<MALLOC_FILTER_RANGE>>>
-
     <<<MALLOC_FILTER>>>
 
-    uint32_t backtrace_size = backtrace(malloc_backtrace_buffer, BUFFER_SIZE);
+    std::array<void*, 20> backtrace_buffer{};
 
-    Allocation alloc{ptr, size, 0, backtrace_size, malloc_backtrace_buffer};
+    <<<USE_BACKTRACE_FAST>>>
+    <<<USE_BACKTRACE_GLIBC>>>
+
+    Allocation alloc{ptr, size, 0, backtrace_size, backtrace_buffer};
     buffer.write(alloc);
     return ptr;
 }
 
 extern "C" void free_hook(void* ptr) {
-    uint32_t backtrace_size = backtrace(free_backtrace_buffer, BUFFER_SIZE);
-    Free free{ptr, 0, backtrace_size, free_backtrace_buffer};
+    std::array<void*, 20> backtrace_buffer {};
+
+    <<<USE_BACKTRACE_FAST>>>
+    <<<USE_BACKTRACE_GLIBC>>>
+
+    Free free{ptr, 0, backtrace_size, backtrace_buffer};
     buffer.write(free);
     return free_real(ptr);
 }

@@ -4,14 +4,15 @@ import subprocess
 from dataclasses import dataclass
 from enum import Enum
 from tempfile import TemporaryDirectory
-
-from cli import *
-
+import cli
 
 class Placeholder(str, Enum):
     MALLOC_FILTER_RANGE = "<<<MALLOC_FILTER_RANGE>>>"
     MALLOC_FILTER = "<<<MALLOC_FILTER>>>"
     CONSTRUCTORS = "<<<CONSTRUCTORS>>>"
+    BACKTRACE_FAST = "<<<USE_BACKTRACE_FAST>>>"
+    BACKTRACE_GLIBC = "<<<USE_BACKTRACE_GLIBC>>>"
+
 
 
 @dataclass
@@ -105,7 +106,7 @@ class CodeEntryFactory:
         return snippet
 
     @staticmethod
-    def buffer_sizes(buffer: BufferSize) -> CodeEntry:
+    def buffer_sizes(buffer: cli.BufferSize) -> CodeEntry:
         placeholder = Placeholder.CONSTRUCTORS
         snippet = ""
         type = buffer.type
@@ -126,6 +127,16 @@ class CodeEntryFactory:
             else:
                 raise Exception(f"Unable to parse buffer size for function: {function}")
         return CodeEntry(placeholder, snippet)
+
+    @staticmethod
+    def backtrace_fast() -> CodeEntry:
+        snippet = "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 1);"
+        return CodeEntry(Placeholder.BACKTRACE_FAST, snippet)
+
+    @staticmethod
+    def backtrace_glibc() -> CodeEntry:
+        snippet = "uint32_t backtrace_size = backtrace(backtrace_buffer.begin(), BUFFER_SIZE);"
+        return CodeEntry(Placeholder.BACKTRACE_GLIBC, snippet)
 
 
 class CodeInjector:

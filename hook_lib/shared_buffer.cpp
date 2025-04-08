@@ -1,6 +1,8 @@
 #include "shared_buffer.h"
 #include <cstring>
 #include <fcntl.h>
+#include <iostream>
+#include <ostream>
 #include <sys/mman.h> // For shm_open, mmap
 #include <unistd.h>   // For close
 
@@ -11,21 +13,15 @@
 // ===================
 
 Allocation::Allocation(void* alloc_address, uint32_t size, uint32_t time,
-                       uint32_t backtrace_size, void* (&buffer)[20])
-    : address{alloc_address}, size{size}, time{time},
-      backtrace_size{backtrace_size} {
-    std::copy(std::begin(buffer), std::end(buffer), backtrace_buffer.begin());
-}
-
-Allocation::Allocation(void* alloc_address, uint32_t size, uint32_t time,
+                       uint32_t backtrace_size,
                        std::array<void*, 20> const& backtrace_buffer)
-    : address{alloc_address}, size{size}, time{time}, backtrace_buffer{backtrace_buffer} {};
+    : address{alloc_address}, size{size}, time{time},
+      backtrace_size{backtrace_size}, backtrace_buffer{backtrace_buffer} {}
 
 Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
-           void* (&buffer)[20])
-    : address{free_ptr}, time{time}, backtrace_size{backtrace_size} {
-    std::copy(std::begin(buffer), std::end(buffer), backtrace_buffer.begin());
-}
+           std::array<void*, 20> const& backtrace_buffer)
+    : address{free_ptr}, time{time}, backtrace_size{backtrace_size},
+      backtrace_buffer{backtrace_buffer} {}
 
 // ===================
 //       Buffer
@@ -59,7 +55,6 @@ Buffer::Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
     head = reinterpret_cast<uint32_t*>(memory);
     tail = reinterpret_cast<uint32_t*>(head + 1);
     overflow = reinterpret_cast<uint32_t*>(head + 2);
-
     *head = 0;
     *tail = 0;
     *overflow = 0;
@@ -72,8 +67,7 @@ Buffer::~Buffer() {
     close(fd);
 }
 
-SharedBuffer::SharedBuffer() : 
-    <<<CONSTRUCTORS>>> {};
+SharedBuffer::SharedBuffer() : <<<CONSTRUCTORS>>> {};
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup
@@ -98,7 +92,8 @@ void SharedBuffer::write(Allocation const& alloc) {
 }
 
 void SharedBuffer::write(Free const& free) {
-    uint32_t const next_tail = (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
+    uint32_t const next_tail =
+        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
 
     if (next_tail == *free_buffer.head) {
         *free_buffer.overflow = 1;

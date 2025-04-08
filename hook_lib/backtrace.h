@@ -21,13 +21,13 @@
  * @warning Results may be unreliable if the program is heavily optimized or lacks frame pointers.
  */
 template <std::size_t N>
-inline std::array<uintptr_t, N> walk_stack_fp(std::size_t skip) {
-    std::array<uintptr_t, N> stack {};
+inline size_t walk_stack_fp(std::array<uintptr_t, N>& buffer, std::size_t skip) {
     uintptr_t* fp = reinterpret_cast<uintptr_t*>(__builtin_frame_address(0));
+    std::size_t i;
 
-    for (std::size_t i = 0; fp && i < N; ++i) {
+    for (i = 0; fp && i < N; ++i) {
         if (i >= skip) {
-            stack[i] = fp[1]; // The return address of the current frame
+            buffer[i] = fp[1]; // The return address of the current frame
         }
         fp = reinterpret_cast<uintptr_t*>(fp[0]); // Follow the frame pointer chain
 
@@ -36,19 +36,19 @@ inline std::array<uintptr_t, N> walk_stack_fp(std::size_t skip) {
         }
     }
 
-    return stack;
+    return i;
 }
 
 template <typename T, std::size_t N>
-inline std::array<T, N> walk_stack_fp(std::size_t skip) {
-    std::array<uintptr_t, N> const trace {walk_stack_fp<20>(skip)};
-    std::array<void*, 20> backtrace {};
+inline size_t walk_stack_fp(std::array<T, N>& buffer, std::size_t skip) {
+    std::array<uintptr_t, 20> temp {};
+    size_t const size {walk_stack_fp<20>(temp, skip)};
     std::transform(
-        trace.begin(),
-        trace.end(),
-        backtrace.begin(),
+        temp.begin(),
+        temp.end(),
+        buffer.begin(),
         [](uintptr_t ptr) { return reinterpret_cast<T>(ptr); }
     );
-    return backtrace;
+    return size;
 }
 

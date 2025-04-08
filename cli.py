@@ -92,8 +92,14 @@ parser.add_argument(
     default="No",
     help="If argument is set to yes it will show an interactive graph showing the current allocation size over time.",
 )
+parser.add_argument(
+    "--backtrace-method",
+    default=["fast"],
+    nargs=1,
+    choices=["fast", "glibc"],
+    help="The method used for fetching the backtrace"
+)
 args = parser.parse_args()
-
 
 @dataclass
 class BufferSize:
@@ -148,9 +154,6 @@ def parse_buffer_size(args) -> BufferSize:
     buffer = BufferSize(type, hooks_and_sizes)
     return buffer
 
-
-
-
 try:
     hook_functions = args.hook_function
     pid = int(args.pid[0])
@@ -172,6 +175,7 @@ try:
     outputfile = args.output_file
     print_frequency = args.print_frequency
     read_frequency = args.read_frequency
+    backtrace_method = args.backtrace_method[0]
 
     if print_frequency < 0:
         print(f"Print frequency {print_frequency} is less than zero, changed to 5.")

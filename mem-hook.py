@@ -15,6 +15,11 @@ def compile_and_inject():
     if cli.filter_size:
         code_entries.append(CodeEntryFactory.malloc_filter(cli.filter_size))
 
+    if cli.backtrace_method == "fast":
+        code_entries.append(CodeEntryFactory.backtrace_fast())
+    elif cli.backtrace_method == "glibc":
+        code_entries.append(CodeEntryFactory.backtrace_glibc())
+
     code_entries.append(CodeEntryFactory.buffer_sizes(cli.buffer_sizes))
 
     CodeInjector.inject(code_entries)
