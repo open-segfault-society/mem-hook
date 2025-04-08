@@ -153,7 +153,7 @@ class Memtracker:
 
     def log_every_event(self, file):
 
-        self.print_header("Every allocation/free", file)
+        self.print_header("Every event", file)
 
         all_event = list(self.frees.values()) + list(self.all_allocations.values())
         all_event = sorted(all_event, key=lambda x: x.time)
@@ -161,11 +161,11 @@ class Memtracker:
         for event in all_event:
 
             if isinstance(event, Allocation):
-                print(f"Allocation of size {event.size} allocated at time: {event.time}.", file=file)
+                print(f"Allocation of size {event.size} at time: {event.time}.", file=file)
                 print(f"Backtrace:", file=file)
                 backtrace_str = ""
                 for backtrace in event.backtraces:
-                    backtrace_str += str(backtrace) + " "
+                    backtrace_str += str(hex(backtrace)) + " "
                 backtrace_str += "\n"
                 print(backtrace_str, file=file)
 
@@ -173,30 +173,16 @@ class Memtracker:
                 try:
                     size = self.allocations[event.pointer].size
                     self.total_free_size += size
-                    print(f"Free of size {size} freed at time: {event.time}.", file=file)
+                    print(f"Free of size {size} at time: {event.time}.", file=file)
                 except KeyError:
-                    print(f"Free of unknown size freed at time: {event.time}.", file=file)
+                    print(f"Free of size unknown at time: {event.time}.", file=file)
 
                 print(f"Backtrace:", file=file)
                 backtrace_str = ""
                 for backtrace in event.backtraces:
-                    backtrace_str += str(backtrace) + " "
+                    backtrace_str += str(hex(backtrace)) + " "
                 backtrace_str += "\n"
                 print(backtrace_str, file=file)
-
-        self.print_header("Potential leaks", file)
-        leaks = list(self.all_allocations.values())
-        leaks = sorted(leaks, key=lambda x: x.time)
-
-        for leak in leaks:
-
-            print(f"Allocation of size {leak.size} allocated at time: {leak.time}.", file=file)
-            print(f"Backtrace:", file=file)
-            backtrace_str = ""
-            for backtrace in leak.backtraces:
-                backtrace_str += str(backtrace) + " "
-            backtrace_str += "\n"
-            print(backtrace_str, file=file)
 
 
     def write_log_file(self):
