@@ -541,7 +541,7 @@ class SharedBuffer:
         memtracker.free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
 
         # =================
-    #       MALLOC
+        #       MALLOC
         # =================
 
         while malloc_head != malloc_tail:
