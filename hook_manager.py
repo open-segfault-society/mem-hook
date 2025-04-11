@@ -1,7 +1,8 @@
 import os
-import subprocess
 import re
+import subprocess
 from dataclasses import dataclass
+
 from gdb_utils import GdbUtils
 
 
@@ -32,11 +33,11 @@ class HookDescriptor:
     def close(self):
         for hook in self.hooks:
             try:
-                GdbUtils.inject_function(self.pid, hook.plt_addr, hook.func_addr)
+                GdbUtils.inject_function(self.pid, hook.func_addr, hook.plt_addr)
                 log(f"Set PLT entry {hex(hook.plt_addr)} to {hex(hook.func_addr)}")
                 log(f"Restored {hook.func_name}")
             except Exception as e:
-                log(f"[X] Failed to restore {hook.func_name}: {e}", True)
+                log(f"Failed to restore {hook.func_name}: {e}", True)
 
 
 class HookManager:
@@ -89,8 +90,8 @@ class HookManager:
                 pass
 
         num = len(hook_names)
-        plural = 's' if len(hook_names) > 1 else ''
-        names = ', '.join(hook_names)
+        plural = "s" if len(hook_names) > 1 else ""
+        names = ", ".join(hook_names)
         self._log(f"Hooking {num} function{plural}... ({names})")
         hd = HookDescriptor(self.hooks, self.pid)
         return hd
@@ -133,7 +134,7 @@ class HookManager:
     def _get_plt_offset(self, func_name: str) -> int:
         """Get the offset of the function entry in PLT"""
         # NOTE: We're extracting the comment in objdump here, it might be better to calculate it explicitly
-        obj_dump_match = re.search(rf"#\s(\d+)\s<{func_name}", self.obj_dump)
+        obj_dump_match = re.search(rf"#\s([a-fA-F\d]+)\s<{func_name}", self.obj_dump)
 
         if not obj_dump_match:
             raise ValueError(f"Could not find {func_name} entry in PLT")
@@ -161,7 +162,6 @@ if __name__ == "__main__":
     hm = HookManager(124168)
     hm.register_hook("malloc")
     hm.register_hook("fraaee")
-    
 
     with hm.inject() as f:
         pass

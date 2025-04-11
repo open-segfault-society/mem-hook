@@ -1,14 +1,18 @@
 import os
-import subprocess
 import shutil
-from tempfile import TemporaryDirectory
+import subprocess
 from dataclasses import dataclass
 from enum import Enum
-
+from tempfile import TemporaryDirectory
+import cli
 
 class Placeholder(str, Enum):
     MALLOC_FILTER_RANGE = "<<<MALLOC_FILTER_RANGE>>>"
     MALLOC_FILTER = "<<<MALLOC_FILTER>>>"
+    CONSTRUCTORS = "<<<CONSTRUCTORS>>>"
+    BACKTRACE_FAST = "<<<USE_BACKTRACE_FAST>>>"
+    BACKTRACE_GLIBC = "<<<USE_BACKTRACE_GLIBC>>>"
+
 
 
 @dataclass
@@ -25,7 +29,7 @@ class CodeEntryFactory:
     @staticmethod
     def malloc_filter_range(bounds: list[tuple[int, int]]) -> CodeEntry:
         placeholder = Placeholder.MALLOC_FILTER_RANGE
-        
+
         bound_snippet = "(size < {} || {} < size) && {}"
         tail_snippet = "true"
         snippet = "if ({})\nreturn ptr;\n"
@@ -52,6 +56,88 @@ class CodeEntryFactory:
 
         return CodeEntry(placeholder, snippet)
 
+    @staticmethod
+    def malloc_constructor(type: str, size: int, last: bool) -> str:
+
+        snippet = 'malloc_buffer("/mem_hook_alloc", 12, {}, 12 + {}),'
+
+        if type == "w":
+            snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
+            snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
+
+        elif type == "b":
+            snippet = snippet.format(str(size), {})
+            snippet = snippet.format(str(size), {})
+
+        # Make sure all entries must be parsed correctly
+        else:
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
+
+        if last:
+            snippet = snippet[:-1]
+        else:
+            snippet = snippet + "\n"
+        return snippet
+
+    @staticmethod
+    def free_constructor(type: str, size: int, last: bool) -> str:
+        snippet = 'free_buffer("/mem_hook_free", 12, {}, 12 + {}),'
+
+        if type == "w":
+            snippet = snippet.format("sizeof(Free) * " + str(size), {})
+            snippet = snippet.format("sizeof(Free) * " + str(size), {})
+
+        elif type == "b":
+            snippet = snippet.format(str(size), {})
+            snippet = snippet.format(str(size), {})
+
+        # Make sure all entries must be parsed correctly
+        else:
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
+
+        if last:
+            snippet = snippet[:-1]
+        else:
+            snippet = snippet + "\n"
+        return snippet
+
+    @staticmethod
+    def buffer_sizes(buffer: cli.BufferSize) -> CodeEntry:
+        placeholder = Placeholder.CONSTRUCTORS
+        snippet = ""
+        type = buffer.type
+        for i, (function, size) in enumerate(buffer.buffer_sizes):
+
+            # Since classes are instantiated with initializer list
+            # they are comma seperated. Last comma must however be removed
+            last = False
+            if i == len(buffer.buffer_sizes) - 1:
+                last = True
+
+            if function == "free":
+                snippet += CodeEntryFactory.free_constructor(type, size, last)
+            elif function == "malloc":
+                snippet += CodeEntryFactory.malloc_constructor(type, size, last)
+
+            # Make sure all entries must be parsed correctly
+            else:
+                raise Exception(f"Unable to parse buffer size for function: {function}")
+        return CodeEntry(placeholder, snippet)
+
+    @staticmethod
+    def backtrace_fast() -> CodeEntry:
+        snippet = "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 1);"
+        return CodeEntry(Placeholder.BACKTRACE_FAST, snippet)
+
+    @staticmethod
+    def backtrace_glibc() -> CodeEntry:
+        snippet = "uint32_t backtrace_size = backtrace(backtrace_buffer.begin(), BUFFER_SIZE);"
+        return CodeEntry(Placeholder.BACKTRACE_GLIBC, snippet)
+
 
 class CodeInjector:
     DIRECTORY: str = "hook_lib"
@@ -60,9 +146,13 @@ class CodeInjector:
     @staticmethod
     def inject(code_entries: list[CodeEntry]):
         # Get the paths and files
-        project_path: str = os.path.dirname(os.path.abspath(__file__)) # Running directory
-        lib_path: str = os.path.join(project_path, CodeInjector.DIRECTORY) # C++ library directory
-        files: list[str] = CodeInjector.get_files(lib_path) # C++ files to be compiled
+        project_path: str = os.path.dirname(
+            os.path.abspath(__file__)
+        )  # Running directory
+        lib_path: str = os.path.join(
+            project_path, CodeInjector.DIRECTORY
+        )  # C++ library directory
+        files: list[str] = CodeInjector.get_files(lib_path)  # C++ files to be compiled
 
         # Copy each C++ file to a temporary directory
         # Insert the snippets, compile, and move the library file to the running directory
@@ -98,7 +188,7 @@ class CodeInjector:
 
     @staticmethod
     def copy_and_inject(
-            src_file: str, dst_file: str, code_entries: list[CodeEntry] 
+        src_file: str, dst_file: str, code_entries: list[CodeEntry]
     ) -> None:
         # Copy each file to the temporary folder and replace
         with open(src_file, "r") as src, open(dst_file, "w") as dst:
@@ -110,7 +200,6 @@ class CodeInjector:
 
             # Clean up all placeholders
             for _, member in Placeholder.__members__.items():
-                content = content.replace(member, '')
+                content = content.replace(member, "")
 
             dst.write(content)
-

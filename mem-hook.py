@@ -1,8 +1,9 @@
 import os
-from hook_manager import HookManager
-from code_injector import CodeInjector, CodeEntry, CodeEntryFactory
+
 import cli
 import shared_buffer
+from code_injector import CodeEntry, CodeEntryFactory, CodeInjector
+from hook_manager import HookManager
 
 
 def compile_and_inject():
@@ -14,6 +15,13 @@ def compile_and_inject():
     if cli.filter_size:
         code_entries.append(CodeEntryFactory.malloc_filter(cli.filter_size))
 
+    if cli.backtrace_method == "fast":
+        code_entries.append(CodeEntryFactory.backtrace_fast())
+    elif cli.backtrace_method == "glibc":
+        code_entries.append(CodeEntryFactory.backtrace_glibc())
+
+    code_entries.append(CodeEntryFactory.buffer_sizes(cli.buffer_sizes))
+
     CodeInjector.inject(code_entries)
 
 
@@ -24,14 +32,16 @@ if __name__ == "__main__":
 
     compile_and_inject()
 
-    memtracker = shared_buffer.Memtracker()
+    memtracker = shared_buffer.Memtracker(cli.log_file)
     hook_manager = HookManager(cli.pid)
 
     # Register hooks
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
-    # memtracker.print_statistics(cli.print_frequency)
     memtracker.display_graph(1)
+
+    if not cli.log_file:
+        memtracker.print_statistics(cli.print_frequency)
 
     with hook_manager.inject() as hd, shared_buffer.SharedBuffer() as shared_buffer:
         try:
@@ -39,4 +49,4 @@ if __name__ == "__main__":
             while True:
                 shared_buffer.read(memtracker)
         except KeyboardInterrupt:
-            pass
+            memtracker.write_log_file()
