@@ -152,38 +152,25 @@ class Memtracker:
         del self.allocations[pointer]
 
     def log_every_event(self, file):
-
         self.print_header("Every event", file)
 
-        all_event = list(self.frees.values()) + list(self.all_allocations.values())
-        all_event = sorted(all_event, key=lambda x: x.time)
+        all_events = list(self.frees.values()) + list(self.all_allocations.values())
+        all_events = sorted(all_events, key=lambda x: x.time)
 
-        for event in all_event:
-
+        for event in all_events:
             if isinstance(event, Allocation):
-                print(f"Allocation of size {event.size} at time: {event.time}.", file=file)
-                print(f"Backtrace:", file=file)
-                backtrace_str = ""
-                for backtrace in event.backtraces:
-                    backtrace_str += str(hex(backtrace)) + " "
-                backtrace_str += "\n"
-                print(backtrace_str, file=file)
+                print(f"[ALLOC] size={event.size} at t={event.time}", file=file)
+                print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
             if isinstance(event, Free):
                 try:
                     size = self.allocations[event.pointer].size
                     self.total_free_size += size
-                    print(f"Free of size {size} at time: {event.time}.", file=file)
                 except KeyError:
-                    print(f"Free of size unknown at time: {event.time}.", file=file)
+                    size = -1
 
-                print(f"Backtrace:", file=file)
-                backtrace_str = ""
-                for backtrace in event.backtraces:
-                    backtrace_str += str(hex(backtrace)) + " "
-                backtrace_str += "\n"
-                print(backtrace_str, file=file)
-
+                print(f"[FREE ] size={size if size != -1 else '?'} at t={event.time}", file=file)
+                print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
     def write_log_file(self):
         if not self.log_file:
@@ -197,37 +184,28 @@ class Memtracker:
         self,
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
-        type: Type,
         file=None,
     ):
         for key in addresses:
-            print(
-                f"Address: {hex(key)} - "
-                + type.name
-                + f": {function_statistics[key].sizes }",
-                file=file,
-            )
+            entry = function_statistics[key]
+            print(f"  - {hex(key):<16} - {entry.sizes} bytes ({entry.amount} calls)", file=file)
 
     def print_num(
         self,
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
-        type: Type,
         file=None,
     ):
         for key in addresses:
-            print(
-                f"Address: {hex(key)} - "
-                + type.name
-                + f" size: {function_statistics[key].amount}",
-                file=file,
-            )
+            entry = function_statistics[key]
+            print(f"  - {hex(key):<16} - {entry.amount} calls ({entry.sizes} bytes)", file=file)
+
 
     def print_header(self, header: str, file=None):
-        width = 20
+        width = 32
         print("=" * width, file=file)
         print(header.center(width), file=file)
-        print("=" * width, file=file)
+        print("=" * width + '\n', file=file)
 
     def print_statistics(self, delay: int, file=None):
         threading.Timer(delay, self.print_statistics, [delay]).start()
@@ -261,51 +239,56 @@ class Memtracker:
             key=lambda k: self.total_function_frees[k].sizes,
             reverse=True,
         )
+
         if (self.malloc_overflow):
             print("MALLOC BUFFER OVERFLOW!")
         if (self.free_overflow):
             print("FREE BUFFER OVERFLOW!")
-        self.print_header("Current allocation information")
-        print("Functions with most number allocations:")
-        self.print_size(
+
+        self.print_header("Current Allocation Summary", file)
+
+        print("Top Allocation Functions by Total Calls:", file=file)
+        self.print_num(
             current_most_allocations,
             self.current_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        print("Functions with largest total allocation size:", file=file)
-        self.print_num(
+        print("Top Allocation Functions by Total Size:", file=file)
+        self.print_size(
             current_largest_allocations,
             self.current_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        self.print_header("Total allocation information")
-        print("Functions with most number allocations:")
-        self.print_size(
+        self.print_header("Total Allocation Summary", file=file)
+
+        print("Top Allocation Functions by Total Calls:", file=file)
+        self.print_num(
             total_most_allocations,
             self.total_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        print("Functions with largest total allocation size:", file=file)
-        self.print_num(
+        print("Top Allocation Functions by Total Size:", file=file)
+        self.print_size(
             total_largest_allocations,
             self.total_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        self.print_header("Total free information", file)
-        print("Functions with most number frees:", file=file)
-        self.print_size(total_most_frees, self.total_function_frees, Type.FREE, file)
+        self.print_header("Total Free Summary", file)
+        print("Top Free Functions by Total Calls:", file=file)
+        self.print_num(total_most_frees, self.total_function_frees, file)
+        print(file=file)
 
-        print("Functions with largest total free size:")
-        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
-        print()
+        print("Top Free Functions by Total Size:")
+        self.print_size(total_largest_frees, self.total_function_frees, file)
+        print(file=file)
 
 
 class SharedBuffer:
