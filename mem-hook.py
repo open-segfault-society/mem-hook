@@ -38,7 +38,9 @@ if __name__ == "__main__":
     # Register hooks
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
-    memtracker.display_graph(1)
+
+    if cli.graph:
+        memtracker.display_graph(cli.time_window)
 
     if not cli.log_file:
         memtracker.print_statistics(cli.print_frequency)

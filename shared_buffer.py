@@ -74,7 +74,8 @@ class Graph:
     WINDOW_WIDTH = 800
     WINDOW_HEIGHT= 600
 
-    def __init__(self):
+    def __init__(self, time_window: int):
+        self.time_window = time_window
         matplotlib.use("TkAgg")  # Use backend that supports scrolling
         self.x_data, self.y_data = [], []
         self.allocs: list[tuple[float, int]] = []
@@ -86,6 +87,7 @@ class Graph:
         self.free_scatter = self.ax.scatter([], [], marker='v', color='r', label="free", s=25)
         self.alloc_scatter.set_zorder(999)
         self.free_scatter.set_zorder(999)
+        self.mem_label = self.fig.text(0.15, 0.90, "", fontsize=12)
 
         self.redraw = True
         self.autoscroll = False
@@ -100,7 +102,6 @@ class Graph:
         # Scroll the x-axis dynamically
         min_x = 0
         max_x = 0
-        window_size = 32
 
         if len(self.x_data) > 1:
             min_x = min(self.x_data)
@@ -117,7 +118,10 @@ class Graph:
                 self.free_scatter.set_offsets(self.frees)
 
             if self.autoscroll:
-                self.ax.set_xlim(max(min_x, max_x - window_size), max_x)
+                self.ax.set_xlim(max(min_x, max_x - self.time_window), max_x)
+
+            if self.y_data:
+                self.mem_label.set_text(f"Memory: {self._get_size(self.y_data[-1])}")
 
             self.fig.canvas.draw()  # Redraw figure
             self.redraw = False
@@ -138,13 +142,15 @@ class Graph:
         self.redraw = True
 
     def _size_format(self, x, pos):
-        # Define the size units
+        return self._get_size(x)
+    
+    def _get_size(self, num):
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if x < 1024.0:
-                return f"{x:.1f} {unit}"
-            x /= 1024.0
-        return f"{x:.1f} PB"
-
+            if num < 1024.0:
+                return f"{num:.1f} {unit}"
+            num /= 1024.0
+        return f"{num:.1f} PB"
+    
 
 class Memtracker:
     def __init__(self, log_file: str | None):
@@ -192,7 +198,6 @@ class Memtracker:
 
         if self.graph is not None:
             alloc_time = (round(allocation.time - self.time_start, 2))
-            print(allocation.time)
             self.graph.add_event(alloc_time, self.total_allocation_size, Type.ALLOCATION)
             self.graph.update()
 
@@ -407,8 +412,8 @@ class Memtracker:
         self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
         print()
 
-    def display_graph(self, delay):
-        self.graph = Graph()
+    def display_graph(self, time_window: int):
+        self.graph = Graph(time_window)
 
 
 class SharedBuffer:
