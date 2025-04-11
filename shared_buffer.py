@@ -313,6 +313,9 @@ class SharedBuffer:
     FREE_MOUNT: str = "/dev/shm/mem_hook_free"
     size: int
 
+    def __init__(self, timestamp: str | None):
+        self.timestamp = timestamp
+
     def __enter__(self):
         # Open the shared memory object
         try:
@@ -329,6 +332,10 @@ class SharedBuffer:
 
         self.malloc_entries = self.malloc_size // ALLOCATION_SIZE
         self.free_entries = self.free_size // FREE_SIZE
+
+        self.take_time = False
+        if not self.timestamp:
+            self.take_time = True
 
         # Map the shared memory object to the Python process's memory space
         try:
@@ -391,9 +398,12 @@ class SharedBuffer:
         size = int.from_bytes(
             self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
         )
-        # time = int.from_bytes(
-        #     self.malloc_mem[start_address + 12 : start_address + 16], byteorder="little"
-        # )
+        if self.take_time:
+            current_time = time.time()
+        else:
+            current_time = int.from_bytes(
+                self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
+            )
         current_time = time.time()
         backtrace_size = int.from_bytes(
             self.malloc_mem[start_address + 16 : start_address + 20], byteorder="little"
@@ -409,10 +419,12 @@ class SharedBuffer:
         pointer = int.from_bytes(
             self.free_mem[start_address : start_address + 8], byteorder="little"
         )
-        # time = int.from_bytes(
-        #     self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
-        # )
-        current_time = time.time()
+        if self.take_time:
+            current_time = time.time()
+        else:
+            current_time = int.from_bytes(
+                self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
+            )
         backtrace_size = int.from_bytes(
             self.free_mem[start_address + 12 : start_address + 16], byteorder="little"
         )

@@ -99,6 +99,14 @@ parser.add_argument(
     choices=["fast", "glibc"],
     help="The method used for fetching the backtrace"
 )
+parser.add_argument(
+    "-tm",
+    "--timestamp-method",
+    default=["None"],
+    nargs=1,
+    choices=["chrono", "rdtscp", "None"],
+    help="The method used for fetching the backtrace"
+)
 args = parser.parse_args()
 
 @dataclass
@@ -177,6 +185,7 @@ try:
     read_frequency = args.read_frequency
     backtrace_method = args.backtrace_method[0]
     log_file = args.output_file
+    timestamp_method = args.timestamp_method[0]
 
     if print_frequency < 0:
         print(f"Print frequency {print_frequency} is less than zero, changed to 5.")

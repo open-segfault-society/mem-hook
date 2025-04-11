@@ -21,7 +21,16 @@ def compile_and_inject():
         code_entries.append(CodeEntryFactory.backtrace_glibc())
 
     code_entries.append(CodeEntryFactory.buffer_sizes(cli.buffer_sizes))
+    
+    print(f"TIMESTAMP:::::::: {cli.timestamp_method}")
+    if cli.timestamp_method == "None":
+        code_entries.append(CodeEntryFactory.timestamp_none())
+    elif cli.timestamp_method == "rdtscp":
+        code_entries.append(CodeEntryFactory.timestamp_rdtscp())
+    elif cli.timestamp_method == "chrono":
+        code_entries.append(CodeEntryFactory.timestamp_chrono())
 
+    print(code_entries)
     CodeInjector.inject(code_entries)
 
 
@@ -42,7 +51,7 @@ if __name__ == "__main__":
     if not cli.log_file:
         memtracker.print_statistics(cli.print_frequency)
 
-    with hook_manager.inject() as hd, shared_buffer.SharedBuffer() as shared_buffer:
+    with hook_manager.inject() as hd, shared_buffer.SharedBuffer(cli.timestamp_method) as shared_buffer:
         try:
             print("\nPress CTRL+C to detach...\n")
             while True:
