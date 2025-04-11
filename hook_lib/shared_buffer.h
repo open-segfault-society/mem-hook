@@ -8,8 +8,8 @@ uint32_t static const BUFFER_SIZE{20};
 
 struct Allocation {
     void* address;                          // Address returned by malloc
+    uint64_t time;                          // Time of allocation
     uint32_t size;                          // Size of allocation
-    uint32_t time;                          // Time of allocation
     uint32_t backtrace_size;                // Backtrace size of allocation
     std::array<void*, 20> backtrace_buffer; // Actual backtrace
 
@@ -20,7 +20,7 @@ struct Allocation {
 
 struct Free {
     void* address;                          // Address returned by malloc
-    uint32_t time;                          // Time of allocation
+    uint64_t time;                          // Time of allocation
     uint32_t backtrace_size;                // Backtrace size of allocation
     std::array<void*, 20> backtrace_buffer; // Actual backtrace
 

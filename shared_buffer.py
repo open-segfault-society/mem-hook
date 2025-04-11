@@ -10,9 +10,9 @@ from enum import Enum
 # Constants
 HEAD_SIZE: int = 12
 ALLOCATION_SIZE: int = (
-    24 + 8 * 20
+    8 + 8 + 4 + 4 + 8 * 20
 )  # Accounts for inner padding, currently no padding between allocations
-FREE_SIZE: int = 8 + 4 + 4 + 8 * 20
+FREE_SIZE: int = 8 + 8 + 4 + 4 + 8 * 20
 
 
 class Type(Enum):
@@ -395,18 +395,17 @@ class SharedBuffer:
         pointer = int.from_bytes(
             self.malloc_mem[start_address : start_address + 8], byteorder="little"
         )
-        size = int.from_bytes(
-            self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
-        )
         if self.take_time:
             current_time = time.time()
         else:
             current_time = int.from_bytes(
-                self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
+                self.malloc_mem[start_address + 8 : start_address + 16], byteorder="little"
             )
-        current_time = time.time()
-        backtrace_size = int.from_bytes(
+        size = int.from_bytes(
             self.malloc_mem[start_address + 16 : start_address + 20], byteorder="little"
+        )
+        backtrace_size = int.from_bytes(
+            self.malloc_mem[start_address + 20 : start_address + 24], byteorder="little"
         )
 
         backtraces = self.read_backtraces(start_address + 24, backtrace_size)
@@ -423,14 +422,14 @@ class SharedBuffer:
             current_time = time.time()
         else:
             current_time = int.from_bytes(
-                self.malloc_mem[start_address + 8 : start_address + 12], byteorder="little"
+                self.malloc_mem[start_address + 8 : start_address + 16], byteorder="little"
             )
         backtrace_size = int.from_bytes(
-            self.free_mem[start_address + 12 : start_address + 16], byteorder="little"
+            self.free_mem[start_address + 16 : start_address + 20], byteorder="little"
         )
 
         backtraces = self.read_backtraces(
-            start_address + 16, backtrace_size, malloc=False
+            start_address + 24, backtrace_size, malloc=False
         )
 
         return Free(pointer, current_time, backtrace_size, backtraces)
