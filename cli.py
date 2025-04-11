@@ -71,26 +71,33 @@ parser.add_argument(
 )
 parser.add_argument(
     "-pf",
-    "--print_frequency",
+    "--print-frequency",
     default=5,
     help="Specify what inverval in seconds to print the current state of allocations.",
 )
 parser.add_argument(
     "-rf",
-    "--read_frequency",
+    "--read-frequency",
     default=0,
     help="Specify what inverval in seconds to wait before reading from the profiler.",
 )
 parser.add_argument(
     "-of",
-    "--output_file",
+    "--output-file",
     default=None,
     help="Specify an output file to write to. If the value is None it will print to the terminal.",
 )
 parser.add_argument(
-    "--interactive_graph",
-    default="No",
-    help="If argument is set to yes it will show an interactive graph showing the current allocation size over time.",
+    "-g",
+    "--graph",
+    action="store_true",
+    help="Show an interactive graph showing the current allocation size over time.",
+)
+parser.add_argument(
+    "-w",
+    "--time-window",
+    type=int,
+    default=32,
 )
 parser.add_argument(
     "--backtrace-method",
@@ -177,6 +184,8 @@ try:
     read_frequency = args.read_frequency
     backtrace_method = args.backtrace_method[0]
     log_file = args.output_file
+    graph = args.graph
+    time_window = args.time_window
 
     if print_frequency < 0:
         print(f"Print frequency {print_frequency} is less than zero, changed to 5.")
