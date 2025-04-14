@@ -553,8 +553,8 @@ class SharedBuffer:
             free = self.read_free(free_head)
             # add_free must be called before remove_allocation
             # since we use info from allocation to get free size
-            memtracker.remove_allocation(free.pointer)
             memtracker.add_free(free)
+            memtracker.remove_allocation(free.pointer)
             free_head = (free_head + 1) % self.free_entries
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
