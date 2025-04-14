@@ -145,7 +145,7 @@ class CodeEntryFactory:
 
     @staticmethod
     def timestamp_rdtscp() -> CodeEntry:
-        snippet = "uint32_t timestamp;\n __rdtscp(&timestamp);"
+        snippet = "uint64_t timestamp;\nuint32_t cpu;\n timestamp = __rdtscp(&cpu);"
         return CodeEntry(Placeholder.TIMESTAMP, snippet)
 
     @staticmethod
