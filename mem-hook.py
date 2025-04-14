@@ -38,6 +38,7 @@ if __name__ == "__main__":
     # Register hooks
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
+    hook_manager.register_hook("_Znwm", "new_hook")
 
     if cli.graph:
         memtracker.display_graph(cli.time_window)

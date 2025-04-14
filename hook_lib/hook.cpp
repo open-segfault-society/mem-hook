@@ -11,6 +11,7 @@ SharedBuffer buffer{};
 // Define a function pointer for the original functions
 void* (*malloc_real)(size_t) = nullptr;
 void (*free_real)(void*) = nullptr;
+void* (*new_real)(size_t) = nullptr;
 
 // The hook function for malloc
 extern "C" void* malloc_hook(uint32_t size) {
@@ -40,6 +41,12 @@ extern "C" void free_hook(void* ptr) {
     return free_real(ptr);
 }
 
+void* new_hook(uint32_t size) {
+    void* const ptr{new_real(size)};
+    std::cout << "newwwwwwwwwwwwwwwwwwwwwwwww" << std::endl;
+    return ptr;
+}
+
 // A function to set the original malloc symbol
 void set_original_malloc() {
     malloc_real = (void* (*)(size_t))dlsym(RTLD_NEXT, "malloc");
@@ -58,8 +65,17 @@ void set_original_free() {
     }
 }
 
+void set_original_new() {
+    new_real = (void* (*)(size_t))dlsym(RTLD_NEXT, "_Znwm");
+    if (!new_real) {
+        std::cerr << "Failed to find original new: " << dlerror() << std::endl;
+        exit(1);
+    }
+}
+
 // Entry point for the shared library
 __attribute__((constructor)) void initialize() {
     set_original_malloc();
     set_original_free();
+    set_original_new();
 }

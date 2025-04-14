@@ -69,6 +69,7 @@ class HookManager:
             hook_name = func_name + self.DEFAULT_HOOK_SUFFIX
 
         try:
+            print(f"func_name: {func_name}")
             plt_addr: int = self._get_plt_offset(func_name) + self.address
             self.hooks.append(FunctionHook(plt_addr, func_name, hook_name))
             self._log(f"Registered hook {hook_name} on {func_name}")
@@ -82,6 +83,7 @@ class HookManager:
         hook_names = []
         for hook in self.hooks:
             try:
+                print(hook.func_name, hook.hook_name)
                 hook.func_addr = self._get_function_address(self.pid, hook.func_name)
                 hook.hook_addr = self._get_function_address(self.pid, hook.hook_name)
                 self._inject_function(self.pid, hook.plt_addr, hook.hook_addr)
@@ -135,6 +137,7 @@ class HookManager:
         """Get the offset of the function entry in PLT"""
         # NOTE: We're extracting the comment in objdump here, it might be better to calculate it explicitly
         obj_dump_match = re.search(rf"#\s([a-fA-F\d]+)\s<{func_name}", self.obj_dump)
+        print(f"obj_dump_match: {obj_dump_match}")
 
         if not obj_dump_match:
             raise ValueError(f"Could not find {func_name} entry in PLT")
