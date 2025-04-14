@@ -6,6 +6,12 @@ import cli
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.ticker as ticker
+import random
+from functools import partial
 
 # Constants
 HEAD_SIZE: int = 12
@@ -64,6 +70,88 @@ class FunctionStatistics:
     sizes: int = 0  # Sizes of the allocations/frees
 
 
+class Graph:
+    WINDOW_WIDTH = 800
+    WINDOW_HEIGHT= 600
+
+    def __init__(self, time_window: int):
+        self.time_window = time_window
+        matplotlib.use("TkAgg")  # Use backend that supports scrolling
+        self.x_data, self.y_data = [], []
+        self.allocs: list[tuple[float, int]] = []
+        self.frees: list[tuple[float, int]] = []
+
+        self.fig, self.ax = plt.subplots(figsize=(self.WINDOW_WIDTH / 100, self.WINDOW_HEIGHT / 100), dpi=100)
+        self.line, = self.ax.plot([], [])
+        self.alloc_scatter = self.ax.scatter([], [], marker='^', color='g', label="alloc", s=25)
+        self.free_scatter = self.ax.scatter([], [], marker='v', color='r', label="free", s=25)
+        self.alloc_scatter.set_zorder(999)
+        self.free_scatter.set_zorder(999)
+        self.mem_label = self.fig.text(0.15, 0.90, "", fontsize=12)
+
+        self.redraw = True
+        self.autoscroll = False
+
+        self.ax.set_navigate(True)  # Enable panning and zooming
+        self.ax.yaxis.set_major_formatter(ticker.FuncFormatter(self._size_format))
+        plt.ion()  # Set interactive mode
+        plt.legend()
+        plt.show(block=False)
+
+    def update(self):
+        # Scroll the x-axis dynamically
+        min_x = 0
+        max_x = 0
+
+        if len(self.x_data) > 1:
+            min_x = min(self.x_data)
+            max_x = max(self.x_data)
+
+        if self.redraw:
+            self.line.set_data(self.x_data, self.y_data)
+            self.ax.relim()
+            self.ax.autoscale_view()
+
+            if self.allocs:
+                self.alloc_scatter.set_offsets(self.allocs)
+            if self.frees:
+                self.free_scatter.set_offsets(self.frees)
+
+            if self.autoscroll:
+                self.ax.set_xlim(max(min_x, max_x - self.time_window), max_x)
+
+            if self.y_data:
+                self.mem_label.set_text(f"Memory: {self._get_size(self.y_data[-1])}")
+
+            self.fig.canvas.draw()  # Redraw figure
+            self.redraw = False
+
+        self.autoscroll = max_x <= self.ax.get_xlim()[1]
+        self.fig.canvas.flush_events()  # Process GUI events
+
+    def add_event(self, time: float, size: int, operation: Type):
+        self.x_data.append(time)
+        self.y_data.append(size)
+
+        match operation:
+            case Type.ALLOCATION:
+                self.allocs.append((time, size))
+            case Type.FREE:
+                self.frees.append((time, size))
+
+        self.redraw = True
+
+    def _size_format(self, x, pos):
+        return self._get_size(x)
+    
+    def _get_size(self, num):
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if num < 1024.0:
+                return f"{num:.1f} {unit}"
+            num /= 1024.0
+        return f"{num:.1f} PB"
+    
+
 class Memtracker:
     def __init__(self, log_file: str | None):
         self.log_file = log_file
@@ -73,6 +161,7 @@ class Memtracker:
         self.frees = {}
         self.total_free_size = 0
         self.total_frees = 0
+        self.time_start = time.time()
         self.all_allocations = {}
 
         self.malloc_overflow = 0
@@ -94,12 +183,23 @@ class Memtracker:
             lambda: FunctionStatistics()
         )
 
+        self.graph: Graph | None = None 
+
+    def do_event_loop(self):
+        if self.graph is not None:
+            self.graph.update()
+
     def add_allocation(self, allocation: Allocation):
         # TODO: nullptr? Could they be some edge case?
         self.allocations[allocation.pointer] = allocation
         self.all_allocations[allocation.pointer] = allocation
         self.total_allocation_size += allocation.size
         self.total_allocations += 1
+
+        if self.graph is not None:
+            alloc_time = (round(allocation.time - self.time_start, 2))
+            self.graph.add_event(alloc_time, self.total_allocation_size, Type.ALLOCATION)
+            self.graph.update()
 
         # Update some statistics
         for address in allocation.backtraces:
@@ -120,6 +220,11 @@ class Memtracker:
         except KeyError:
             size = 0
         self.total_frees += 1
+
+        if self.graph is not None:
+            free_time = (round(free.time - self.time_start, 2))
+            self.graph.add_event(free_time, self.total_allocation_size, Type.FREE)
+            self.graph.update()
 
         # Update some statistics
         for address in free.backtraces:
@@ -152,38 +257,25 @@ class Memtracker:
         del self.allocations[pointer]
 
     def log_every_event(self, file):
-
         self.print_header("Every event", file)
 
-        all_event = list(self.frees.values()) + list(self.all_allocations.values())
-        all_event = sorted(all_event, key=lambda x: x.time)
+        all_events = list(self.frees.values()) + list(self.all_allocations.values())
+        all_events = sorted(all_events, key=lambda x: x.time)
 
-        for event in all_event:
-
+        for event in all_events:
             if isinstance(event, Allocation):
-                print(f"Allocation of size {event.size} at time: {event.time}.", file=file)
-                print(f"Backtrace:", file=file)
-                backtrace_str = ""
-                for backtrace in event.backtraces:
-                    backtrace_str += str(hex(backtrace)) + " "
-                backtrace_str += "\n"
-                print(backtrace_str, file=file)
+                print(f"[ALLOC] size={event.size} at t={event.time}", file=file)
+                print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
             if isinstance(event, Free):
                 try:
                     size = self.allocations[event.pointer].size
                     self.total_free_size += size
-                    print(f"Free of size {size} at time: {event.time}.", file=file)
                 except KeyError:
-                    print(f"Free of size unknown at time: {event.time}.", file=file)
+                    size = -1
 
-                print(f"Backtrace:", file=file)
-                backtrace_str = ""
-                for backtrace in event.backtraces:
-                    backtrace_str += str(hex(backtrace)) + " "
-                backtrace_str += "\n"
-                print(backtrace_str, file=file)
-
+                print(f"[FREE ] size={size if size != -1 else '?'} at t={event.time}", file=file)
+                print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
     def write_log_file(self):
         if not self.log_file:
@@ -197,37 +289,28 @@ class Memtracker:
         self,
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
-        type: Type,
         file=None,
     ):
         for key in addresses:
-            print(
-                f"Address: {hex(key)} - "
-                + type.name
-                + f": {function_statistics[key].sizes }",
-                file=file,
-            )
+            entry = function_statistics[key]
+            print(f"  - {hex(key):<16} - {entry.sizes} bytes ({entry.amount} calls)", file=file)
 
     def print_num(
         self,
         addresses: list[int],
         function_statistics: dict[int, FunctionStatistics],
-        type: Type,
         file=None,
     ):
         for key in addresses:
-            print(
-                f"Address: {hex(key)} - "
-                + type.name
-                + f" size: {function_statistics[key].amount}",
-                file=file,
-            )
+            entry = function_statistics[key]
+            print(f"  - {hex(key):<16} - {entry.amount} calls ({entry.sizes} bytes)", file=file)
+
 
     def print_header(self, header: str, file=None):
-        width = 20
+        width = 32
         print("=" * width, file=file)
         print(header.center(width), file=file)
-        print("=" * width, file=file)
+        print("=" * width + '\n', file=file)
 
     def print_statistics(self, delay: int, file=None):
         threading.Timer(delay, self.print_statistics, [delay]).start()
@@ -261,51 +344,59 @@ class Memtracker:
             key=lambda k: self.total_function_frees[k].sizes,
             reverse=True,
         )
+
         if (self.malloc_overflow):
             print("MALLOC BUFFER OVERFLOW!")
         if (self.free_overflow):
             print("FREE BUFFER OVERFLOW!")
-        self.print_header("Current allocation information")
-        print("Functions with most number allocations:")
-        self.print_size(
+
+        self.print_header("Current Allocation Summary", file)
+
+        print("Top Allocation Functions by Total Calls:", file=file)
+        self.print_num(
             current_most_allocations,
             self.current_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        print("Functions with largest total allocation size:", file=file)
-        self.print_num(
+        print("Top Allocation Functions by Total Size:", file=file)
+        self.print_size(
             current_largest_allocations,
             self.current_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        self.print_header("Total allocation information")
-        print("Functions with most number allocations:")
-        self.print_size(
+        self.print_header("Total Allocation Summary", file=file)
+
+        print("Top Allocation Functions by Total Calls:", file=file)
+        self.print_num(
             total_most_allocations,
             self.total_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        print("Functions with largest total allocation size:", file=file)
-        self.print_num(
+        print("Top Allocation Functions by Total Size:", file=file)
+        self.print_size(
             total_largest_allocations,
             self.total_function_allocations,
-            Type.ALLOCATION,
             file,
         )
+        print(file=file)
 
-        self.print_header("Total free information", file)
-        print("Functions with most number frees:", file=file)
-        self.print_size(total_most_frees, self.total_function_frees, Type.FREE, file)
+        self.print_header("Total Free Summary", file)
+        print("Top Free Functions by Total Calls:", file=file)
+        self.print_num(total_most_frees, self.total_function_frees, file)
+        print(file=file)
 
-        print("Functions with largest total free size:")
-        self.print_num(total_largest_frees, self.total_function_frees, Type.FREE)
-        print()
+        print("Top Free Functions by Total Size:")
+        self.print_size(total_largest_frees, self.total_function_frees, file)
+        print(file=file)
+
+    def display_graph(self, time_window: int):
+        self.graph = Graph(time_window)
 
 
 class SharedBuffer:
@@ -462,8 +553,9 @@ class SharedBuffer:
             free = self.read_free(free_head)
             # add_free must be called before remove_allocation
             # since we use info from allocation to get free size
-            memtracker.add_free(free)
             memtracker.remove_allocation(free.pointer)
+            memtracker.add_free(free)
             free_head = (free_head + 1) % self.free_entries
 
         self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
+        memtracker.do_event_loop()
