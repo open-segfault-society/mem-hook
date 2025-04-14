@@ -12,13 +12,13 @@
 //       Free
 // ===================
 
-Allocation::Allocation(void* alloc_address, uint32_t size, uint32_t time,
+Allocation::Allocation(void* alloc_address, uint64_t time, uint32_t size,
                        uint32_t backtrace_size,
                        std::array<void*, 20> const& backtrace_buffer)
-    : address{alloc_address}, size{size}, time{time},
+    : address{alloc_address}, time{time}, size{size},
       backtrace_size{backtrace_size}, backtrace_buffer{backtrace_buffer} {}
 
-Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
+Free::Free(void* free_ptr, uint64_t time, uint32_t backtrace_size,
            std::array<void*, 20> const& backtrace_buffer)
     : address{free_ptr}, time{time}, backtrace_size{backtrace_size},
       backtrace_buffer{backtrace_buffer} {}

@@ -53,11 +53,13 @@ class Free:
         time: float,
         backtrace_size: int,
         backtraces: list[int],
+        size: int = -1
     ):
         self.pointer = pointer
         self.time = time
         self.backtrace_size = backtrace_size
         self.backtraces = backtraces
+        self.size = size
 
     def __str__(self):
         addresses = [hex(value) for value in self.backtraces]
@@ -162,7 +164,8 @@ class Memtracker:
         self.total_free_size = 0
         self.total_frees = 0
         self.time_start = time.time()
-        self.all_allocations = {}
+        self.all_allocations: list[Allocation] = []
+        self.all_frees: list[Free] = []
 
         self.malloc_overflow = 0
         self.free_overflow = 0
@@ -192,7 +195,7 @@ class Memtracker:
     def add_allocation(self, allocation: Allocation):
         # TODO: nullptr? Could they be some edge case?
         self.allocations[allocation.pointer] = allocation
-        self.all_allocations[allocation.pointer] = allocation
+        self.all_allocations.append(allocation)
         self.total_allocation_size += allocation.size
         self.total_allocations += 1
 
@@ -212,14 +215,16 @@ class Memtracker:
 
     def add_free(self, free: Free):
         # TODO: Do we care about saving what pointers we've freed? They can and most likely will be reused
-        self.frees[free.pointer] = free
-
         try:
-            size = self.allocations[free.pointer].size
-            self.total_free_size += size
+            free.size = self.allocations[free.pointer].size
+            self.total_free_size += free.size
         except KeyError:
-            size = 0
+            free.size = 0
         self.total_frees += 1
+
+        self.frees[free.pointer] = free
+        self.all_frees.append(free)
+
 
         if self.graph is not None:
             free_time = (round(free.time - self.time_start, 2))
@@ -229,10 +234,10 @@ class Memtracker:
         # Update some statistics
         for address in free.backtraces:
 
-            self.current_function_frees[address].sizes += size
+            self.current_function_frees[address].sizes += free.size
             self.current_function_frees[address].amount += 1
 
-            self.total_function_frees[address].sizes += size
+            self.total_function_frees[address].sizes += free.size
             self.total_function_frees[address].amount += 1
 
     def remove_allocation(self, pointer: int):
@@ -259,7 +264,7 @@ class Memtracker:
     def log_every_event(self, file):
         self.print_header("Every event", file)
 
-        all_events = list(self.frees.values()) + list(self.all_allocations.values())
+        all_events: list[Allocation | Free] = self.all_frees + self.all_allocations
         all_events = sorted(all_events, key=lambda x: x.time)
 
         for event in all_events:
@@ -492,6 +497,9 @@ class SharedBuffer:
             current_time = int.from_bytes(
                 self.malloc_mem[start_address + 8 : start_address + 16], byteorder="little"
             )
+        if self.timestamp == "chrono":
+            current_time /= 10**9  # Nanoseconds to seconds
+
         size = int.from_bytes(
             self.malloc_mem[start_address + 16 : start_address + 20], byteorder="little"
         )
@@ -513,8 +521,11 @@ class SharedBuffer:
             current_time = time.time()
         else:
             current_time = int.from_bytes(
-                self.malloc_mem[start_address + 8 : start_address + 16], byteorder="little"
+                self.free_mem[start_address + 8 : start_address + 16], byteorder="little"
             )
+        if self.timestamp == "chrono":
+            current_time /= 10**9  # Nanoseconds to seconds
+
         backtrace_size = int.from_bytes(
             self.free_mem[start_address + 16 : start_address + 20], byteorder="little"
         )

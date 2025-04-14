@@ -125,7 +125,6 @@ class BufferSize:
         return self.type + str(self.buffer_sizes)
 
 def verify_sizes(type: str, hooks_and_sizes: list[tuple[str, int]]):
-
     for i, (hook, size) in enumerate(hooks_and_sizes):
         if type == "w" and size < 1:
             print(f"The size for hook {hook} is less than one write, size changed to 1 write.")

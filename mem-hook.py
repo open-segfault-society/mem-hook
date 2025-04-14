@@ -22,7 +22,6 @@ def compile_and_inject():
 
     code_entries.append(CodeEntryFactory.buffer_sizes(cli.buffer_sizes))
     
-    print(f"TIMESTAMP:::::::: {cli.timestamp_method}")
     if cli.timestamp_method == "None":
         code_entries.append(CodeEntryFactory.timestamp_none())
     elif cli.timestamp_method == "rdtscp":
@@ -30,7 +29,6 @@ def compile_and_inject():
     elif cli.timestamp_method == "chrono":
         code_entries.append(CodeEntryFactory.timestamp_chrono())
 
-    print(code_entries)
     CodeInjector.inject(code_entries)
 
 

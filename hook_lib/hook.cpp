@@ -30,7 +30,7 @@ extern "C" void* malloc_hook(uint32_t size) {
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Allocation alloc{ptr, size, (uint64_t)timestamp, backtrace_size, backtrace_buffer};
+    Allocation alloc{ptr, reinterpret_cast<uint64_t>(timestamp), size, backtrace_size, backtrace_buffer};
     buffer.write(alloc);
     return ptr;
 }
@@ -43,7 +43,7 @@ extern "C" void free_hook(void* ptr) {
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Free free{ptr, timestamp, backtrace_size, backtrace_buffer};
+    Free free{ptr, reinterpret_cast<uint64_t>(timestamp), backtrace_size, backtrace_buffer};
     buffer.write(free);
     return free_real(ptr);
 }
