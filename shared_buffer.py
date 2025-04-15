@@ -225,7 +225,6 @@ class Memtracker:
         self.frees[free.pointer] = free
         self.all_frees.append(free)
 
-
         if self.graph is not None:
             free_time = (round(free.time - self.time_start, 2))
             self.graph.add_event(free_time, self.total_allocation_size, Type.FREE)
@@ -233,7 +232,6 @@ class Memtracker:
 
         # Update some statistics
         for address in free.backtraces:
-
             self.current_function_frees[address].sizes += free.size
             self.current_function_frees[address].amount += 1
 
@@ -273,13 +271,7 @@ class Memtracker:
                 print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
             if isinstance(event, Free):
-                try:
-                    size = self.allocations[event.pointer].size
-                    self.total_free_size += size
-                except KeyError:
-                    size = -1
-
-                print(f"[FREE ] size={size if size != -1 else '?'} at t={event.time}", file=file)
+                print(f"[FREE ] size={event.size if event.size else '?'} at t={event.time}", file=file)
                 print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
     def write_log_file(self):

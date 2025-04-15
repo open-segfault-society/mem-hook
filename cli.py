@@ -109,7 +109,7 @@ parser.add_argument(
 parser.add_argument(
     "-tm",
     "--timestamp-method",
-    default=["None"],
+    default=["chrono"],
     nargs=1,
     choices=["chrono", "rdtscp", "None"],
     help="The method used for fetching the backtrace"
