@@ -1,7 +1,7 @@
 import os
 
 import cli
-import shared_buffer
+import new_shared_buffer
 from code_injector import CodeEntry, CodeEntryFactory, CodeInjector
 from hook_manager import HookManager
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     compile_and_inject()
 
-    memtracker = shared_buffer.Memtracker(cli.log_file)
+    memtracker = new_shared_buffer.Memtracker(cli.log_file)
     hook_manager = HookManager(cli.pid)
 
     # Register hooks
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     if not cli.log_file:
         memtracker.print_statistics(cli.print_frequency)
 
-    with hook_manager.inject() as hd, shared_buffer.SharedBuffer(cli.timestamp_method) as shared_buffer:
+    with hook_manager.inject() as hd, new_shared_buffer.SharedBuffer(cli.timestamp_method) as shared_buffer:
         try:
             print("\nPress CTRL+C to detach...\n")
             while True:
