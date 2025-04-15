@@ -5,6 +5,8 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <iostream>
+#include <x86intrin.h>
+#include <chrono>
 
 SharedBuffer buffer{};
 
@@ -22,6 +24,7 @@ void (*non_throw_delete_real)(void*, const std::nothrow_t&) noexcept;
 
 void* (*placement_new_real)(size_t, void*) = nullptr;
 void* (*array_placement_new_real)(size_t, void*) = nullptr;
+struct timespec ts;
 
 // The hook function for malloc
 extern "C" void* malloc_hook(uint32_t size) {
@@ -29,6 +32,8 @@ extern "C" void* malloc_hook(uint32_t size) {
 
     <<<ALLOC_FILTER_RANGE>>>
     <<<ALLOC_FILTER>>>
+    <<<TIMESTAMP>>>
+
 
     std::array<void*, 20> backtrace_buffer{};
 
@@ -42,6 +47,8 @@ extern "C" void* malloc_hook(uint32_t size) {
 
 extern "C" void free_hook(void* ptr) {
     std::array<void*, 20> backtrace_buffer {};
+
+    <<<TIMESTAMP>>>
 
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>

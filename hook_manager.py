@@ -33,7 +33,7 @@ class HookDescriptor:
     def close(self):
         for hook in self.hooks:
             try:
-                GdbUtils.inject_function(self.pid, hook.func_addr, hook.plt_addr)
+                GdbUtils.inject_function(self.pid, hook.plt_addr, hook.func_addr)
                 log(f"Set PLT entry {hex(hook.plt_addr)} to {hex(hook.func_addr)}")
                 log(f"Restored {hook.func_name}")
             except Exception as e:
