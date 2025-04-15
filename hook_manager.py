@@ -88,8 +88,8 @@ class HookManager:
                 hook.hook_addr = self._get_function_address(self.pid, hook.hook_name)
                 self._inject_function(self.pid, hook.plt_addr, hook.hook_addr)
                 hook_names.append(hook.func_name)
-            except Exception:
-                pass
+            except Exception as e:
+                self._log(str(e), True)
 
         num = len(hook_names)
         plural = "s" if len(hook_names) > 1 else ""

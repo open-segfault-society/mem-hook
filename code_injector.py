@@ -59,11 +59,11 @@ class CodeEntryFactory:
     @staticmethod
     def malloc_constructor(type: str, size: int, last: bool) -> str:
 
-        snippet = 'malloc_buffer("/mem_hook_alloc", 12, {}, 12 + {}),'
+        snippet = 'malloc_buffer("/mem_hook_malloc", 12, {}, 12 + {}),'
 
         if type == "w":
-            snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
-            snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
+            snippet = snippet.format("sizeof(Malloc) * " + str(size), {})
+            snippet = snippet.format("sizeof(Malloc) * " + str(size), {})
 
         elif type == "b":
             snippet = snippet.format(str(size), {})
@@ -106,6 +106,78 @@ class CodeEntryFactory:
         return snippet
 
     @staticmethod
+    def new_constructor(type: str, size: int, last: bool) -> str:
+        snippet = 'new_buffer("/mem_hook_free", 12, {}, 12 + {}),'
+
+        if type == "w":
+            snippet = snippet.format("sizeof(New) * " + str(size), {})
+            snippet = snippet.format("sizeof(New) * " + str(size), {})
+
+        elif type == "b":
+            snippet = snippet.format(str(size), {})
+            snippet = snippet.format(str(size), {})
+
+        # Make sure all entries must be parsed correctly
+        else:
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
+
+        if last:
+            snippet = snippet[:-1]
+        else:
+            snippet = snippet + "\n"
+        return snippet
+
+    @staticmethod
+    def new_array_constructor(type: str, size: int, last: bool) -> str:
+        snippet = 'free_buffer("/mem_hook_free", 12, {}, 12 + {}),'
+
+        if type == "w":
+            snippet = snippet.format("sizeof(Free) * " + str(size), {})
+            snippet = snippet.format("sizeof(Free) * " + str(size), {})
+
+        elif type == "b":
+            snippet = snippet.format(str(size), {})
+            snippet = snippet.format(str(size), {})
+
+        # Make sure all entries must be parsed correctly
+        else:
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
+
+        if last:
+            snippet = snippet[:-1]
+        else:
+            snippet = snippet + "\n"
+        return snippet
+
+    @staticmethod
+    def new_no_throw_constructor(type: str, size: int, last: bool) -> str:
+        snippet = 'free_buffer("/mem_hook_free", 12, {}, 12 + {}),'
+
+        if type == "w":
+            snippet = snippet.format("sizeof(Free) * " + str(size), {})
+            snippet = snippet.format("sizeof(Free) * " + str(size), {})
+
+        elif type == "b":
+            snippet = snippet.format(str(size), {})
+            snippet = snippet.format(str(size), {})
+
+        # Make sure all entries must be parsed correctly
+        else:
+            raise Exception(
+                f"Unable to parse buffer type for size: {size}, type: {type}"
+            )
+
+        if last:
+            snippet = snippet[:-1]
+        else:
+            snippet = snippet + "\n"
+        return snippet
+
+    @staticmethod
     def buffer_sizes(buffer: cli.BufferSize) -> CodeEntry:
         placeholder = Placeholder.CONSTRUCTORS
         snippet = ""
@@ -122,6 +194,12 @@ class CodeEntryFactory:
                 snippet += CodeEntryFactory.free_constructor(type, size, last)
             elif function == "malloc":
                 snippet += CodeEntryFactory.malloc_constructor(type, size, last)
+            elif function == "_Znwm":
+                snippet += CodeEntryFactory.new_constructor(type, size, last)
+            elif function == "_Znam":
+                snippet += CodeEntryFactory.new_array_constructor(type, size, last)
+            elif function == "_ZnwmRKSt9nothrow_t":
+                snippet += CodeEntryFactory.new_no_throw_constructor(type, size, last)
 
             # Make sure all entries must be parsed correctly
             else:

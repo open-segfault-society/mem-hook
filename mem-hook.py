@@ -39,6 +39,10 @@ if __name__ == "__main__":
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
     hook_manager.register_hook("_Znwm", "new_hook")
+    hook_manager.register_hook("_Znam", "array_new_hook")
+    hook_manager.register_hook("_ZnwmRKSt9nothrow_t", "non_throw_new_hook")
+    hook_manager.register_hook("_ZnwmPv", "placement_new_hook")
+    hook_manager.register_hook("_ZnaPv", "array_placement_new_hook")
 
     if cli.graph:
         memtracker.display_graph(cli.time_window)

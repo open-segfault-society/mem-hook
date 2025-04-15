@@ -12,11 +12,11 @@
 //       Free
 // ===================
 
-Allocation::Allocation(void* alloc_address, uint32_t size, uint32_t time,
-                       uint32_t backtrace_size,
+Allocation::Allocation(void* address, uint64_t time, uint32_t size,
+                       uint32_t backtrace_size, AllocationType type,
                        std::array<void*, 20> const& backtrace_buffer)
-    : address{alloc_address}, size{size}, time{time},
-      backtrace_size{backtrace_size}, backtrace_buffer{backtrace_buffer} {}
+    : address{address}, time{time}, size{size}, 
+      backtrace_size{backtrace_size}, type{type}, backtrace_buffer{backtrace_buffer} {}
 
 Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
            std::array<void*, 20> const& backtrace_buffer)
@@ -75,7 +75,7 @@ SharedBuffer::~SharedBuffer() {
     free_buffer.~Buffer();
 }
 
-void SharedBuffer::write(Allocation const& alloc) {
+void SharedBuffer::write(Allocation const& malloc) {
     uint32_t const next_tail =
         (*malloc_buffer.tail + 1) %
         (malloc_buffer.data_size / sizeof(struct Allocation));
@@ -87,7 +87,7 @@ void SharedBuffer::write(Allocation const& alloc) {
 
     std::memcpy(malloc_buffer.data_start +
                     (*malloc_buffer.tail * sizeof(struct Allocation)),
-                &alloc, sizeof(alloc));
+                &malloc, sizeof(malloc));
     (*malloc_buffer.tail) = next_tail;
 }
 
