@@ -5,6 +5,8 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <iostream>
+#include <x86intrin.h>
+#include <chrono>
 
 SharedBuffer buffer{};
 
@@ -12,9 +14,13 @@ SharedBuffer buffer{};
 void* (*malloc_real)(size_t) = nullptr;
 void (*free_real)(void*) = nullptr;
 
+struct timespec ts;
+
 // The hook function for malloc
 extern "C" void* malloc_hook(uint32_t size) {
     void* const ptr{malloc_real(size)}; // Call the original malloc
+
+    <<<TIMESTAMP>>>
 
     <<<MALLOC_FILTER_RANGE>>>
     <<<MALLOC_FILTER>>>
@@ -24,7 +30,7 @@ extern "C" void* malloc_hook(uint32_t size) {
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Allocation alloc{ptr, size, 0, backtrace_size, backtrace_buffer};
+    Allocation alloc{ptr, reinterpret_cast<uint64_t>(timestamp), size, backtrace_size, backtrace_buffer};
     buffer.write(alloc);
     return ptr;
 }
@@ -32,10 +38,12 @@ extern "C" void* malloc_hook(uint32_t size) {
 extern "C" void free_hook(void* ptr) {
     std::array<void*, 20> backtrace_buffer {};
 
+    <<<TIMESTAMP>>>
+
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Free free{ptr, 0, backtrace_size, backtrace_buffer};
+    Free free{ptr, reinterpret_cast<uint64_t>(timestamp), backtrace_size, backtrace_buffer};
     buffer.write(free);
     return free_real(ptr);
 }

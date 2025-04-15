@@ -106,6 +106,14 @@ parser.add_argument(
     choices=["fast", "glibc"],
     help="The method used for fetching the backtrace"
 )
+parser.add_argument(
+    "-tm",
+    "--timestamp-method",
+    default=["None"],
+    nargs=1,
+    choices=["chrono", "rdtscp", "None"],
+    help="The method used for fetching the backtrace"
+)
 args = parser.parse_args()
 
 @dataclass
@@ -117,7 +125,6 @@ class BufferSize:
         return self.type + str(self.buffer_sizes)
 
 def verify_sizes(type: str, hooks_and_sizes: list[tuple[str, int]]):
-
     for i, (hook, size) in enumerate(hooks_and_sizes):
         if type == "w" and size < 1:
             print(f"The size for hook {hook} is less than one write, size changed to 1 write.")
@@ -184,6 +191,7 @@ try:
     read_frequency = args.read_frequency
     backtrace_method = args.backtrace_method[0]
     log_file = args.output_file
+    timestamp_method = args.timestamp_method[0]
     graph = args.graph
     time_window = args.time_window
 

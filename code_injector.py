@@ -12,7 +12,7 @@ class Placeholder(str, Enum):
     CONSTRUCTORS = "<<<CONSTRUCTORS>>>"
     BACKTRACE_FAST = "<<<USE_BACKTRACE_FAST>>>"
     BACKTRACE_GLIBC = "<<<USE_BACKTRACE_GLIBC>>>"
-
+    TIMESTAMP = "<<<TIMESTAMP>>>"
 
 
 @dataclass
@@ -137,6 +137,21 @@ class CodeEntryFactory:
     def backtrace_glibc() -> CodeEntry:
         snippet = "uint32_t backtrace_size = backtrace(backtrace_buffer.begin(), BUFFER_SIZE);"
         return CodeEntry(Placeholder.BACKTRACE_GLIBC, snippet)
+
+    @staticmethod
+    def timestamp_none() -> CodeEntry:
+        snippet = "uint64_t timestamp {0};"
+        return CodeEntry(Placeholder.TIMESTAMP, snippet)
+
+    @staticmethod
+    def timestamp_rdtscp() -> CodeEntry:
+        snippet = "uint64_t timestamp;\nuint32_t cpu;\n timestamp = __rdtscp(&cpu);"
+        return CodeEntry(Placeholder.TIMESTAMP, snippet)
+
+    @staticmethod
+    def timestamp_chrono() -> CodeEntry:
+        snippet = "auto now = std::chrono::high_resolution_clock::now();\nuint64_t timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();"
+        return CodeEntry(Placeholder.TIMESTAMP, snippet)
 
 
 class CodeInjector:
