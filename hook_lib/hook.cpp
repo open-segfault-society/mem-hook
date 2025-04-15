@@ -114,6 +114,7 @@ void delete_hook(void* ptr) {
     Trace trace{ptr, 0, 0, backtrace_size, DELETE, backtrace_buffer};
     buffer.write(trace);
     delete_real(ptr);
+    std::cout << "DELETE HOOK" << std::endl;
 }
 
 void array_delete_hook(void* ptr) {
@@ -189,6 +190,7 @@ void set_original_new_non_throw() {
 }
 
 void set_original_delete() {
+    std::cout << "INIT DELETE HOOK" << std::endl;
     delete_real = (void (*)(void*))dlsym(RTLD_NEXT, "_ZdlPv");
     if (!delete_real) {
         std::cerr << "Failed to find original delete: " << dlerror() << std::endl;
