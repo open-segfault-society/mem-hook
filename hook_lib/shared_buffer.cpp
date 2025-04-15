@@ -6,26 +6,11 @@
 #include <sys/mman.h> // For shm_open, mmap
 #include <unistd.h>   // For close
 
-// ===================
-//     Allocation
-//         &
-//       Free
-// ===================
-
-Allocation::Allocation(void* address, uint64_t time, uint32_t size,
-                       uint32_t backtrace_size, AllocationType type,
-                       std::array<void*, 20> const& backtrace_buffer)
-    : address{address}, time{time}, size{size}, 
-      backtrace_size{backtrace_size}, type{type}, backtrace_buffer{backtrace_buffer} {}
-
-Free::Free(void* free_ptr, uint32_t time, uint32_t backtrace_size,
-           std::array<void*, 20> const& backtrace_buffer)
-    : address{free_ptr}, time{time}, backtrace_size{backtrace_size},
-      backtrace_buffer{backtrace_buffer} {}
-
-// ===================
-//       Buffer
-// ===================
+Trace::Trace(void* address, uint64_t time, uint32_t size,
+             uint32_t backtrace_size, TraceType type,
+             std::array<void*, 20> const& backtrace_buffer)
+    : address{address}, time{time}, size{size}, backtrace_size{backtrace_size},
+      type{type}, backtrace_buffer{backtrace_buffer} {}
 
 Buffer::Buffer(const char* mount_point, uint32_t head_size, uint32_t data_size,
                uint32_t buffer_size)
@@ -67,41 +52,23 @@ Buffer::~Buffer() {
     close(fd);
 }
 
-SharedBuffer::SharedBuffer() : <<<CONSTRUCTORS>>> {};
+SharedBuffer::SharedBuffer() : <<<BUFFER>>> {};
 
 SharedBuffer::~SharedBuffer() {
     // Cleanup
-    malloc_buffer.~Buffer();
-    free_buffer.~Buffer();
+    buffer.~Buffer();
 }
 
-void SharedBuffer::write(Allocation const& malloc) {
+void SharedBuffer::write(Trace const& trace) {
     uint32_t const next_tail =
-        (*malloc_buffer.tail + 1) %
-        (malloc_buffer.data_size / sizeof(struct Allocation));
+        (*buffer.tail + 1) % (buffer.data_size / sizeof(struct Trace));
 
-    if (next_tail == *malloc_buffer.head) {
-        *malloc_buffer.overflow = 1;
+    if (next_tail == *buffer.head) {
+        *buffer.overflow = 1;
         return;
     }
 
-    std::memcpy(malloc_buffer.data_start +
-                    (*malloc_buffer.tail * sizeof(struct Allocation)),
-                &malloc, sizeof(malloc));
-    (*malloc_buffer.tail) = next_tail;
-}
-
-void SharedBuffer::write(Free const& free) {
-    uint32_t const next_tail =
-        (*free_buffer.tail + 1) % (free_buffer.data_size / sizeof(struct Free));
-
-    if (next_tail == *free_buffer.head) {
-        *free_buffer.overflow = 1;
-        return;
-    }
-
-    std::memcpy(free_buffer.data_start +
-                    (*free_buffer.tail * sizeof(struct Free)),
-                &free, sizeof(struct Free));
-    (*free_buffer.tail) = next_tail;
+    std::memcpy(buffer.data_start + (*buffer.tail * sizeof(struct Trace)),
+                &trace, sizeof(struct Trace));
+    (*buffer.tail) = next_tail;
 }
