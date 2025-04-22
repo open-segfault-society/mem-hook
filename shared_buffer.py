@@ -1,80 +1,68 @@
 import mmap
 import os
+import random
 import threading
 import time
-import cli
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import matplotlib.ticker as ticker
-import random
+from enum import IntEnum
 from functools import partial
+
+import matplotlib
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
+import cli
 
 # Constants
 HEAD_SIZE: int = 12
-ALLOCATION_SIZE: int = (
-    8 + 8 + 4 + 4 + 8 * 20
+TRACE_SIZE: int = (
+    32 + 8 * 20
 )  # Accounts for inner padding, currently no padding between allocations
-FREE_SIZE: int = 8 + 8 + 4 + 4 + 8 * 20
 
 
-class Type(Enum):
-    ALLOCATION = (1,)
-    FREE = (2,)
+class TraceType(IntEnum):
+    MALLOC = 0
+    NEW = 1
+    NEW_ARRAY = 2
+    NEW_NO_THROW = 3
+    FREE = 4
+    DELETE = 5
+    DELETE_ARRAY = 6
+    DELETE_NO_THROW = 7
 
 
-class Allocation:
+class GraphType(IntEnum):
+    ALLOCATION = 0
+    DEALLOCATION = 1
+
+
+class Trace:
     def __init__(
         self,
-        pointer: int,
+        address: int,
+        time: float,
         size: int,
-        time: float,
         backtrace_size: int,
+        type: TraceType,
         backtraces: list[int],
     ):
-        self.pointer = pointer
+        self.address = address
         self.size = size
         self.time = time
         self.backtrace_size = backtrace_size
+        self.type = type
         self.backtraces = backtraces
 
     def __str__(self):
         addresses = [hex(value) for value in self.backtraces]
-        return f"ALLOCTATION: Address: {hex(self.pointer)}, Size: {self.size}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
-
-
-class Free:
-    def __init__(
-        self,
-        pointer: int,
-        time: float,
-        backtrace_size: int,
-        backtraces: list[int],
-        size: int = -1
-    ):
-        self.pointer = pointer
-        self.time = time
-        self.backtrace_size = backtrace_size
-        self.backtraces = backtraces
-        self.size = size
-
-    def __str__(self):
-        addresses = [hex(value) for value in self.backtraces]
-        return f"FREE:        Address: {hex(self.pointer)}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
-
-
-@dataclass
-class FunctionStatistics:
-    amount: int = 0  # Number of frees/allocation
-    sizes: int = 0  # Sizes of the allocations/frees
+        return f"ALLOCTATION: Address: {hex(self.address)}, Size: {self.size}, Time: {self.time}, Backtrace size: {self.backtrace_size}, Backtrace: {addresses}"
 
 
 class Graph:
     WINDOW_WIDTH = 800
-    WINDOW_HEIGHT= 600
+    WINDOW_HEIGHT = 600
 
     def __init__(self, time_window: int):
         self.time_window = time_window
@@ -83,10 +71,16 @@ class Graph:
         self.allocs: list[tuple[float, int]] = []
         self.frees: list[tuple[float, int]] = []
 
-        self.fig, self.ax = plt.subplots(figsize=(self.WINDOW_WIDTH / 100, self.WINDOW_HEIGHT / 100), dpi=100)
-        self.line, = self.ax.plot([], [])
-        self.alloc_scatter = self.ax.scatter([], [], marker='^', color='g', label="alloc", s=25)
-        self.free_scatter = self.ax.scatter([], [], marker='v', color='r', label="free", s=25)
+        self.fig, self.ax = plt.subplots(
+            figsize=(self.WINDOW_WIDTH / 100, self.WINDOW_HEIGHT / 100), dpi=100
+        )
+        (self.line,) = self.ax.plot([], [])
+        self.alloc_scatter = self.ax.scatter(
+            [], [], marker="^", color="g", label="alloc", s=25
+        )
+        self.free_scatter = self.ax.scatter(
+            [], [], marker="v", color="r", label="free", s=25
+        )
         self.alloc_scatter.set_zorder(999)
         self.free_scatter.set_zorder(999)
         self.mem_label = self.fig.text(0.15, 0.90, "", fontsize=12)
@@ -131,41 +125,50 @@ class Graph:
         self.autoscroll = max_x <= self.ax.get_xlim()[1]
         self.fig.canvas.flush_events()  # Process GUI events
 
-    def add_event(self, time: float, size: int, operation: Type):
+    def add_event(self, time: float, size: int, operation: GraphType):
         self.x_data.append(time)
         self.y_data.append(size)
 
         match operation:
-            case Type.ALLOCATION:
+            case GraphType.ALLOCATION:
                 self.allocs.append((time, size))
-            case Type.FREE:
+            case GraphType.DEALLOCATION:
                 self.frees.append((time, size))
 
         self.redraw = True
 
     def _size_format(self, x, pos):
         return self._get_size(x)
-    
+
     def _get_size(self, num):
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
             if num < 1024.0:
                 return f"{num:.1f} {unit}"
             num /= 1024.0
         return f"{num:.1f} PB"
-    
 
+
+@dataclass
+class FunctionStatistics:
+    amount: int = 0  # Number of frees/allocation
+    sizes: int = 0  # Sizes of the allocations/frees
+
+
+# Memtracker does not distingish between the different types of allocations/frees
+# e.g. it will treat malloc/new/new[] as simply an allocation. Same for free/delete/delete[]
+# The information will still be available
 class Memtracker:
     def __init__(self, log_file: str | None):
         self.log_file = log_file
         self.allocations = {}
-        self.total_allocation_size = 0
+        self.total_allocation_size: int = 0
         self.total_allocations = 0
         self.frees = {}
         self.total_free_size = 0
         self.total_frees = 0
         self.time_start = time.time()
-        self.all_allocations: list[Allocation] = []
-        self.all_frees: list[Free] = []
+        self.all_allocations: list[Trace] = []
+        self.all_frees: list[Trace] = []
 
         self.malloc_overflow = 0
         self.free_overflow = 0
@@ -186,93 +189,96 @@ class Memtracker:
             lambda: FunctionStatistics()
         )
 
-        self.graph: Graph | None = None 
+        self.graph: Graph | None = None
 
     def do_event_loop(self):
         if self.graph is not None:
             self.graph.update()
 
-    def add_allocation(self, allocation: Allocation):
-        # TODO: nullptr? Could they be some edge case?
-        self.allocations[allocation.pointer] = allocation
-        self.all_allocations.append(allocation)
-        self.total_allocation_size += allocation.size
+    def add_allocation(self, trace: Trace):
+        self.allocations[trace.address] = trace
+        self.all_allocations.append(trace)
+        self.total_allocation_size += trace.size
         self.total_allocations += 1
 
         if self.graph is not None:
-            alloc_time = (round(allocation.time - self.time_start, 2))
-            self.graph.add_event(alloc_time, self.total_allocation_size, Type.ALLOCATION)
+            alloc_time = round(trace.time - self.time_start, 2)
+            self.graph.add_event(
+                alloc_time, self.total_allocation_size, GraphType.ALLOCATION
+            )
             self.graph.update()
 
         # Update some statistics
-        for address in allocation.backtraces:
+        for address in trace.backtraces:
 
-            self.current_function_allocations[address].sizes += allocation.size
+            self.current_function_allocations[address].sizes += trace.size
             self.current_function_allocations[address].amount += 1
 
-            self.total_function_allocations[address].sizes += allocation.size
+            self.total_function_allocations[address].sizes += trace.size
             self.total_function_allocations[address].amount += 1
 
-    def add_free(self, free: Free):
+    def add_trace(self, trace: Trace):
+        # TODO: nullptr? Could they be some edge case?
+        if trace.type in [
+            TraceType.MALLOC,
+            TraceType.NEW,
+            TraceType.NEW_ARRAY,
+            TraceType.NEW_NO_THROW,
+        ]:
+            self.add_allocation(trace)
+        else:
+            self.add_deallocation(trace)
+
+    def add_deallocation(self, trace: Trace):
         # TODO: Do we care about saving what pointers we've freed? They can and most likely will be reused
         try:
-            free.size = self.allocations[free.pointer].size
-            self.total_free_size += free.size
+            trace.size = self.allocations[trace.address].size
+            self.total_free_size += trace.size
+            self.total_allocation_size -= trace.size
         except KeyError:
-            free.size = 0
+            trace.size = 0
         self.total_frees += 1
 
-        self.frees[free.pointer] = free
-        self.all_frees.append(free)
+        self.frees[trace.address] = trace
+        self.all_frees.append(trace)
 
         if self.graph is not None:
-            free_time = (round(free.time - self.time_start, 2))
-            self.graph.add_event(free_time, self.total_allocation_size, Type.FREE)
+            free_time = round(trace.time - self.time_start, 2)
+            self.graph.add_event(
+                free_time, self.total_allocation_size, GraphType.DEALLOCATION
+            )
             self.graph.update()
 
         # Update some statistics
-        for address in free.backtraces:
-            self.current_function_frees[address].sizes += free.size
+        for address in trace.backtraces:
+            self.current_function_frees[address].sizes += trace.size
             self.current_function_frees[address].amount += 1
 
-            self.total_function_frees[address].sizes += free.size
+            self.total_function_frees[address].sizes += trace.size
             self.total_function_frees[address].amount += 1
 
-    def remove_allocation(self, pointer: int):
-        # TODO: Do we want to remove any freed memory?
-        # Could there be value in seeing the total allocations along side
-        # the current ones?
-        try:
-            allocation = self.allocations[pointer]
-        except KeyError:
-            # Allocation was probably made before hook got injected
-            # or we missed it
-            return
-
-        self.total_allocation_size -= allocation.size
-        self.total_allocations -= 1
-
-        # Remove allocation from each function in backtrace
-        for address in allocation.backtraces:
-            self.current_function_allocations[address].sizes -= allocation.size
+            self.current_function_allocations[address].sizes -= trace.size
             self.current_function_allocations[address].amount -= 1
 
-        del self.allocations[pointer]
+        del self.allocations[trace.address]
+
 
     def log_every_event(self, file):
         self.print_header("Every event", file)
 
-        all_events: list[Allocation | Free] = self.all_frees + self.all_allocations
+        all_events: list[Trace] = self.all_frees + self.all_allocations
         all_events = sorted(all_events, key=lambda x: x.time)
 
         for event in all_events:
-            if isinstance(event, Allocation):
-                print(f"[ALLOC] size={event.size} at t={event.time}", file=file)
-                print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
 
-            if isinstance(event, Free):
-                print(f"[FREE ] size={event.size if event.size else '?'} at t={event.time}", file=file)
-                print(f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n", file=file)
+            print(
+                f"[{event.type.name}] size={event.size if event.size else '?'} at t={event.time}",
+                file=file,
+            )
+            print(
+                f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n",
+                file=file,
+            )
 
     def write_log_file(self):
         if not self.log_file:
@@ -290,7 +296,10 @@ class Memtracker:
     ):
         for key in addresses:
             entry = function_statistics[key]
-            print(f"  - {hex(key):<16} - {entry.sizes} bytes ({entry.amount} calls)", file=file)
+            print(
+                f"  - {hex(key):<16} - {entry.sizes} bytes ({entry.amount} calls)",
+                file=file,
+            )
 
     def print_num(
         self,
@@ -300,14 +309,16 @@ class Memtracker:
     ):
         for key in addresses:
             entry = function_statistics[key]
-            print(f"  - {hex(key):<16} - {entry.amount} calls ({entry.sizes} bytes)", file=file)
-
+            print(
+                f"  - {hex(key):<16} - {entry.amount} calls ({entry.sizes} bytes)",
+                file=file,
+            )
 
     def print_header(self, header: str, file=None):
         width = 32
         print("=" * width, file=file)
         print(header.center(width), file=file)
-        print("=" * width + '\n', file=file)
+        print("=" * width + "\n", file=file)
 
     def print_statistics(self, delay: int, file=None):
         threading.Timer(delay, self.print_statistics, [delay]).start()
@@ -342,9 +353,9 @@ class Memtracker:
             reverse=True,
         )
 
-        if (self.malloc_overflow):
+        if self.malloc_overflow:
             print("MALLOC BUFFER OVERFLOW!")
-        if (self.free_overflow):
+        if self.free_overflow:
             print("FREE BUFFER OVERFLOW!")
 
         self.print_header("Current Allocation Summary", file)
@@ -397,8 +408,7 @@ class Memtracker:
 
 
 class SharedBuffer:
-    MALLOC_MOUNT: str = "/dev/shm/mem_hook_alloc"
-    FREE_MOUNT: str = "/dev/shm/mem_hook_free"
+    MOUNT: str = "/dev/shm/mem_hook"
     size: int
 
     def __init__(self, timestamp: str | None):
@@ -408,18 +418,15 @@ class SharedBuffer:
         # Open the shared memory object
         try:
             # Open the shared memory object (O_RDWR for read-write access)
-            self.malloc_fd = os.open(self.MALLOC_MOUNT, os.O_RDWR)
-            self.free_fd = os.open(self.FREE_MOUNT, os.O_RDWR)
+            self.fd = os.open(self.MOUNT, os.O_RDWR)
         except OSError as e:
             print(f"Failed to open shared memory: {e}")
             exit(1)
 
         # Get the size of the shared memory object by using fstat
-        self.malloc_size = os.fstat(self.malloc_fd).st_size
-        self.free_size = os.fstat(self.free_fd).st_size
+        self.size = os.fstat(self.fd).st_size
 
-        self.malloc_entries = self.malloc_size // ALLOCATION_SIZE
-        self.free_entries = self.free_size // FREE_SIZE
+        self.entries = self.size // TRACE_SIZE
 
         self.take_time = False
         if not self.timestamp:
@@ -427,46 +434,31 @@ class SharedBuffer:
 
         # Map the shared memory object to the Python process's memory space
         try:
-            self.malloc_mem = mmap.mmap(
-                self.malloc_fd, self.malloc_size, access=mmap.ACCESS_WRITE
-            )
-            self.free_mem = mmap.mmap(
-                self.free_fd, self.free_size, access=mmap.ACCESS_WRITE
-            )
+            self.mem = mmap.mmap(self.fd, self.size, access=mmap.ACCESS_WRITE)
         except Exception as e:
             print(f"Failed to map shared memory: {e}")
-            os.close(self.malloc_fd)
-            os.close(self.free_fd)
+            os.close(self.fd)
             exit(1)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.malloc_fd is None or self.malloc_mem is None:
-            return
-        if self.free_fd is None or self.free_mem is None:
+        if self.fd is None or self.mem is None:
             return
 
-        self.malloc_mem.close()
-        os.close(self.malloc_fd)
-        self.free_mem.close()
-        os.close(self.free_fd)
+        self.mem.close()
+        os.close(self.fd)
 
-    def read_backtraces(self, start_address, backtrace_size, malloc=True) -> list[int]:
+    def read_backtraces(self, start_address, backtrace_size) -> list[int]:
         if backtrace_size == 0:
             return []
 
         backtraces = []
         read_pointers = 0
 
-        if malloc:
-            mem = self.malloc_mem
-        else:
-            mem = self.free_mem
-
         while read_pointers != backtrace_size:
             backtraces.append(
                 int.from_bytes(
-                    mem[
+                    self.mem[
                         start_address
                         + read_pointers * 8 : start_address
                         + (read_pointers + 1) * 8
@@ -478,87 +470,45 @@ class SharedBuffer:
 
         return backtraces
 
-    def read_allocation(self, head: int) -> Allocation:
-        start_address = head * ALLOCATION_SIZE + HEAD_SIZE
+    def read_trace(self, head: int) -> Trace:
+        start_address = head * TRACE_SIZE + HEAD_SIZE
         pointer = int.from_bytes(
-            self.malloc_mem[start_address : start_address + 8], byteorder="little"
+            self.mem[start_address : start_address + 8], byteorder="little"
         )
         if self.take_time:
             current_time = time.time()
         else:
             current_time = int.from_bytes(
-                self.malloc_mem[start_address + 8 : start_address + 16], byteorder="little"
+                self.mem[start_address + 8 : start_address + 16],
+                byteorder="little",
             )
-        if self.timestamp == "chrono":
-            current_time /= 10**9  # Nanoseconds to seconds
-
         size = int.from_bytes(
-            self.malloc_mem[start_address + 16 : start_address + 20], byteorder="little"
+            self.mem[start_address + 16 : start_address + 20], byteorder="little"
         )
         backtrace_size = int.from_bytes(
-            self.malloc_mem[start_address + 20 : start_address + 24], byteorder="little"
+            self.mem[start_address + 20 : start_address + 24], byteorder="little"
         )
 
-        backtraces = self.read_backtraces(start_address + 24, backtrace_size)
-
-        return Allocation(pointer, size, current_time, backtrace_size, backtraces)
-
-    def read_free(self, head: int) -> Free:
-        # assumes 8 bytes pointers aka 64-bit system
-        start_address = head * FREE_SIZE + HEAD_SIZE
-        pointer = int.from_bytes(
-            self.free_mem[start_address : start_address + 8], byteorder="little"
-        )
-        if self.take_time:
-            current_time = time.time()
-        else:
-            current_time = int.from_bytes(
-                self.free_mem[start_address + 8 : start_address + 16], byteorder="little"
-            )
-        if self.timestamp == "chrono":
-            current_time /= 10**9  # Nanoseconds to seconds
-
-        backtrace_size = int.from_bytes(
-            self.free_mem[start_address + 16 : start_address + 20], byteorder="little"
+        trace_type = int.from_bytes(
+            self.mem[start_address + 24 : start_address + 28], byteorder="little"
         )
 
-        backtraces = self.read_backtraces(
-            start_address + 24, backtrace_size, malloc=False
-        )
+        type = TraceType(int(trace_type))
 
-        return Free(pointer, current_time, backtrace_size, backtraces)
+        backtraces = self.read_backtraces(start_address + 32, backtrace_size)
+
+        return Trace(pointer, current_time, size, backtrace_size, type, backtraces)
 
     def read(self, memtracker: Memtracker):
-        malloc_head = int.from_bytes(self.malloc_mem[0:4], byteorder="little")
-        malloc_tail = int.from_bytes(self.malloc_mem[4:8], byteorder="little")
-        memtracker.malloc_overflow = int.from_bytes(self.malloc_mem[8:12], byteorder="little")
+        head = int.from_bytes(self.mem[0:4], byteorder="little")
+        tail = int.from_bytes(self.mem[4:8], byteorder="little")
+        memtracker.malloc_overflow = int.from_bytes(self.mem[8:12], byteorder="little")
 
-        free_head = int.from_bytes(self.free_mem[0:4], byteorder="little")
-        free_tail = int.from_bytes(self.free_mem[4:8], byteorder="little")
-        memtracker.free_overflow = int.from_bytes(self.free_mem[8:12], byteorder="little")
+        while head != tail:
+            trace = self.read_trace(head)
+            memtracker.add_trace(trace)
+            head = (head + 1) % self.entries
 
-        # =================
-        #       MALLOC
-        # =================
+        self.mem[0:4] = head.to_bytes(4, byteorder="little")
 
-        while malloc_head != malloc_tail:
-            allocation = self.read_allocation(malloc_head)
-            memtracker.add_allocation(allocation)
-            malloc_head = (malloc_head + 1) % self.malloc_entries
-
-        self.malloc_mem[0:4] = malloc_head.to_bytes(4, byteorder="little")
-
-        # =================
-        #       FREE
-        # =================
-
-        while free_head != free_tail:
-            free = self.read_free(free_head)
-            # add_free must be called before remove_allocation
-            # since we use info from allocation to get free size
-            memtracker.add_free(free)
-            memtracker.remove_allocation(free.pointer)
-            free_head = (free_head + 1) % self.free_entries
-
-        self.free_mem[0:4] = free_head.to_bytes(4, byteorder="little")
         memtracker.do_event_loop()
