@@ -77,7 +77,7 @@ class CodeEntryFactory:
     @staticmethod
     def backtrace_fast() -> CodeEntry:
         snippet = (
-            "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 1);"
+            "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 2);"
         )
         return CodeEntry(Placeholder.BACKTRACE_FAST, snippet)
 

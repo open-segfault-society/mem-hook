@@ -72,6 +72,7 @@ void* new_hook(uint32_t size) {
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
+
     Trace trace{ptr, timestamp, size, backtrace_size, NEW, backtrace_buffer};
     buffer.write(trace);
     return ptr;
@@ -147,8 +148,9 @@ void array_delete_size_hook(void* ptr, size_t size) {
     std::array<void*, 20> backtrace_buffer{};
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
+    <<<TIMESTAMP>>>
 
-    Trace trace{ptr, 0, 0, backtrace_size, DELETE_ARRAY, backtrace_buffer};
+    Trace trace{ptr, timestamp, 0, backtrace_size, DELETE_ARRAY, backtrace_buffer};
     buffer.write(trace);
     delete_array_size_real(ptr, size);
 }
