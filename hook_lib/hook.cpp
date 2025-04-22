@@ -18,8 +18,10 @@ void* (*new_real)(size_t) = nullptr;
 void* (*array_new_real)(size_t) = nullptr;
 void* (*non_throw_new_real)(size_t, const std::nothrow_t&) noexcept = nullptr;
 
-void (*delete_real)(void*);
-void (*delete_array_real)(void*);
+void (*delete_real)(void*) = nullptr;
+void (*delete_size_real)(void*, size_t) = nullptr;
+void (*delete_array_real)(void*) = nullptr;
+void (*delete_array_size_real)(void*, size_t) = nullptr;
 void (*non_throw_delete_real)(void*, const std::nothrow_t&) noexcept;
 
 void* (*placement_new_real)(size_t, void*) = nullptr;
@@ -114,7 +116,16 @@ void delete_hook(void* ptr) {
     Trace trace{ptr, 0, 0, backtrace_size, DELETE, backtrace_buffer};
     buffer.write(trace);
     delete_real(ptr);
-    std::cout << "DELETE HOOK" << std::endl;
+}
+
+void delete_size_hook(void* ptr, size_t size) {
+    std::array<void*, 20> backtrace_buffer{};
+    <<<USE_BACKTRACE_FAST>>>
+    <<<USE_BACKTRACE_GLIBC>>>
+
+    Trace trace{ptr, 0, 0, backtrace_size, DELETE, backtrace_buffer};
+    buffer.write(trace);
+    delete_size_real(ptr, size);
 }
 
 void array_delete_hook(void* ptr) {
@@ -125,6 +136,16 @@ void array_delete_hook(void* ptr) {
     Trace trace{ptr, 0, 0, backtrace_size, DELETE_ARRAY, backtrace_buffer};
     buffer.write(trace);
     delete_array_real(ptr);
+} 
+
+void array_delete_size_hook(void* ptr, size_t size) {
+    std::array<void*, 20> backtrace_buffer{};
+    <<<USE_BACKTRACE_FAST>>>
+    <<<USE_BACKTRACE_GLIBC>>>
+
+    Trace trace{ptr, 0, 0, backtrace_size, DELETE_ARRAY, backtrace_buffer};
+    buffer.write(trace);
+    delete_array_size_real(ptr, size);
 }
 
 void non_throw_delete_hook(void* ptr, const std::nothrow_t& nothrow) {
@@ -190,10 +211,17 @@ void set_original_new_non_throw() {
 }
 
 void set_original_delete() {
-    std::cout << "INIT DELETE HOOK" << std::endl;
     delete_real = (void (*)(void*))dlsym(RTLD_NEXT, "_ZdlPv");
     if (!delete_real) {
         std::cerr << "Failed to find original delete: " << dlerror() << std::endl;
+        exit(1);
+    }
+}
+
+void set_original_delete_size() {
+    delete_size_real = (void (*)(void*, size_t))dlsym(RTLD_NEXT, "_ZdlPvm");
+    if (!delete_size_real) {
+        std::cerr << "Failed to find original size delete: " << dlerror() << std::endl;
         exit(1);
     }
 }
@@ -202,6 +230,14 @@ void set_original_delete_array() {
     delete_array_real = (void (*)(void*))dlsym(RTLD_NEXT, "_ZdaPv");
     if (!delete_array_real) {
         std::cerr << "Failed to find original delete-array: " << dlerror() << std::endl;
+        exit(1);
+    }
+}
+
+void set_original_delete_size_array() {
+    delete_array_size_real = (void (*)(void*, size_t))dlsym(RTLD_NEXT, "_ZdaPvm");
+    if (!delete_array_size_real) {
+        std::cerr << "Failed to find original size delete-array: " << dlerror() << std::endl;
         exit(1);
     }
 }
@@ -238,7 +274,9 @@ __attribute__((constructor)) void initialize() {
     set_original_new_array();
     set_original_new_non_throw();
     set_original_delete();
+    set_original_delete_size();
     set_original_delete_array();
+    set_original_delete_size_array();
     set_original_delete_non_throw();
     // set_original_placement_new();
     // set_original_placement_new_array();
