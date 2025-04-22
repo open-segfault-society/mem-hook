@@ -40,7 +40,7 @@ extern "C" void* malloc_hook(uint32_t size) {
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Trace trace{ptr, size, 0, backtrace_size, MALLOC, backtrace_buffer};
+    Trace trace{ptr, timestamp, size, backtrace_size, MALLOC, backtrace_buffer};
     buffer.write(trace);
     return ptr;
 }
@@ -53,7 +53,7 @@ extern "C" void free_hook(void* ptr) {
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Trace trace{ptr, 0, 0, backtrace_size, FREE, backtrace_buffer};
+    Trace trace{ptr, timestamp, 0, backtrace_size, FREE, backtrace_buffer};
     buffer.write(trace);
     return free_real(ptr);
 }
@@ -63,13 +63,14 @@ void* new_hook(uint32_t size) {
 
     <<<ALLOC_FILTER_RANGE>>>
     <<<ALLOC_FILTER>>>
+    <<<TIMESTAMP>>>
 
     std::array<void*, 20> backtrace_buffer{};
 
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Trace trace{ptr, size, 0, backtrace_size, NEW, backtrace_buffer};
+    Trace trace{ptr, timestamp, size, backtrace_size, NEW, backtrace_buffer};
     buffer.write(trace);
     return ptr;
 }
@@ -79,13 +80,14 @@ void* array_new_hook(uint32_t size) {
 
     <<<ALLOC_FILTER_RANGE>>>
     <<<ALLOC_FILTER>>>
+    <<<TIMESTAMP>>>
 
     std::array<void*, 20> backtrace_buffer{};
 
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Trace trace{ptr, size, 0, backtrace_size, NEW_ARRAY, backtrace_buffer};
+    Trace trace{ptr, timestamp, size, backtrace_size, NEW_ARRAY, backtrace_buffer};
     buffer.write(trace);
     return ptr;
 }
@@ -95,13 +97,14 @@ void* non_throw_new_hook(uint32_t size, const std::nothrow_t& nothrow) {
 
     <<<ALLOC_FILTER_RANGE>>>
     <<<ALLOC_FILTER>>>
+    <<<TIMESTAMP>>>
 
     std::array<void*, 20> backtrace_buffer{};
 
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
 
-    Trace trace{ptr, size, 0, backtrace_size, NEW_NO_THROW, backtrace_buffer};
+    Trace trace{ptr, timestamp, 0, backtrace_size, NEW_NO_THROW, backtrace_buffer};
     buffer.write(trace);
     return ptr;
 }
@@ -110,8 +113,9 @@ void delete_hook(void* ptr) {
     std::array<void*, 20> backtrace_buffer{};
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
+    <<<TIMESTAMP>>>
 
-    Trace trace{ptr, 0, 0, backtrace_size, DELETE, backtrace_buffer};
+    Trace trace{ptr, timestamp, 0, backtrace_size, DELETE, backtrace_buffer};
     buffer.write(trace);
     delete_real(ptr);
     std::cout << "DELETE HOOK" << std::endl;
@@ -121,8 +125,9 @@ void array_delete_hook(void* ptr) {
     std::array<void*, 20> backtrace_buffer{};
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
+    <<<TIMESTAMP>>>
 
-    Trace trace{ptr, 0, 0, backtrace_size, DELETE_ARRAY, backtrace_buffer};
+    Trace trace{ptr, timestamp, 0, backtrace_size, DELETE_ARRAY, backtrace_buffer};
     buffer.write(trace);
     delete_array_real(ptr);
 }
@@ -131,8 +136,9 @@ void non_throw_delete_hook(void* ptr, const std::nothrow_t& nothrow) {
     std::array<void*, 20> backtrace_buffer{};
     <<<USE_BACKTRACE_FAST>>>
     <<<USE_BACKTRACE_GLIBC>>>
+    <<<TIMESTAMP>>>
 
-    Trace trace{ptr, 0, 0, backtrace_size, DELETE_NO_THROW, backtrace_buffer};
+    Trace trace{ptr, timestamp, 0, backtrace_size, DELETE_NO_THROW, backtrace_buffer};
     buffer.write(trace);
     non_throw_delete_real(ptr, nothrow);
 }
