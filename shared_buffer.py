@@ -232,10 +232,13 @@ class Memtracker:
     def add_deallocation(self, trace: Trace):
         # TODO: Do we care about saving what pointers we've freed? They can and most likely will be reused
         try:
-            trace.size = self.allocations[trace.address].size
+            original_trace = self.allocations[trace.address]
+            trace.size = original_trace.size
+            del self.allocations[trace.address]
             self.total_free_size += trace.size
             self.total_allocation_size -= trace.size
         except KeyError:
+            original_trace = None
             trace.size = 0
         self.total_frees += 1
 
@@ -257,11 +260,10 @@ class Memtracker:
             self.total_function_frees[address].sizes += trace.size
             self.total_function_frees[address].amount += 1
 
-            self.current_function_allocations[address].sizes -= trace.size
-            self.current_function_allocations[address].amount -= 1
-
-        del self.allocations[trace.address]
-
+        if original_trace:
+            for address in original_trace.backtraces:
+                self.current_function_allocations[address].sizes -= trace.size
+                self.current_function_allocations[address].amount -= 1
 
     def log_every_event(self, file):
         self.print_header("Every event", file)
