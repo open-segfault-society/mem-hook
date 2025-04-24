@@ -45,6 +45,16 @@ if __name__ == "__main__":
     # Register hooks
     hook_manager.register_hook("malloc")
     hook_manager.register_hook("free")
+    hook_manager.register_hook("_Znwm", "new_hook")
+    hook_manager.register_hook("_Znam", "array_new_hook")
+    hook_manager.register_hook("_ZnwmRKSt9nothrow_t", "non_throw_new_hook")
+    hook_manager.register_hook("_ZdlPv", "delete_hook")
+    hook_manager.register_hook("_ZdlPvm", "delete_size_hook")
+    hook_manager.register_hook("_ZdaPv", "array_delete_hook")
+    hook_manager.register_hook("_ZdaPvm", "array_delete_size_hook")
+    hook_manager.register_hook("_ZdlPvRKSt9nothrow_t", "non_throw_delete_hook")
+    # hook_manager.register_hook("_ZnwmPv", "placement_new_hook")
+    # hook_manager.register_hook("_ZnaPv", "array_placement_new_hook")
 
     if cli.graph:
         memtracker.display_graph(cli.time_window)

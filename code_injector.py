@@ -4,16 +4,17 @@ import subprocess
 from dataclasses import dataclass
 from enum import Enum
 from tempfile import TemporaryDirectory
+
 import cli
 
+
 class Placeholder(str, Enum):
-    MALLOC_FILTER_RANGE = "<<<MALLOC_FILTER_RANGE>>>"
-    MALLOC_FILTER = "<<<MALLOC_FILTER>>>"
-    CONSTRUCTORS = "<<<CONSTRUCTORS>>>"
+    ALLOC_FILTER_RANGE = "<<<ALLOC_FILTER_RANGE>>>"
+    ALLOC_FILTER = "<<<ALLOC_FILTER>>>"
+    BUFFER = "<<<BUFFER>>>"
     BACKTRACE_FAST = "<<<USE_BACKTRACE_FAST>>>"
     BACKTRACE_GLIBC = "<<<USE_BACKTRACE_GLIBC>>>"
     TIMESTAMP = "<<<TIMESTAMP>>>"
-
 
 @dataclass
 class CodeEntry:
@@ -28,7 +29,7 @@ class CodeEntry:
 class CodeEntryFactory:
     @staticmethod
     def malloc_filter_range(bounds: list[tuple[int, int]]) -> CodeEntry:
-        placeholder = Placeholder.MALLOC_FILTER_RANGE
+        placeholder = Placeholder.ALLOC_FILTER_RANGE
 
         bound_snippet = "(size < {} || {} < size) && {}"
         tail_snippet = "true"
@@ -43,7 +44,7 @@ class CodeEntryFactory:
 
     @staticmethod
     def malloc_filter(values: list[int]) -> CodeEntry:
-        placeholder = Placeholder.MALLOC_FILTER
+        placeholder = Placeholder.ALLOC_FILTER
 
         value_snippet = "(size != {}) && {}"
         tail_snippet = "true"
@@ -57,80 +58,27 @@ class CodeEntryFactory:
         return CodeEntry(placeholder, snippet)
 
     @staticmethod
-    def malloc_constructor(type: str, size: int, last: bool) -> str:
-
-        snippet = 'malloc_buffer("/mem_hook_alloc", 12, {}, 12 + {}),'
-
-        if type == "w":
-            snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
-            snippet = snippet.format("sizeof(Allocation) * " + str(size), {})
-
-        elif type == "b":
-            snippet = snippet.format(str(size), {})
-            snippet = snippet.format(str(size), {})
-
-        # Make sure all entries must be parsed correctly
-        else:
-            raise Exception(
-                f"Unable to parse buffer type for size: {size}, type: {type}"
-            )
-
-        if last:
-            snippet = snippet[:-1]
-        else:
-            snippet = snippet + "\n"
-        return snippet
-
-    @staticmethod
-    def free_constructor(type: str, size: int, last: bool) -> str:
-        snippet = 'free_buffer("/mem_hook_free", 12, {}, 12 + {}),'
-
-        if type == "w":
-            snippet = snippet.format("sizeof(Free) * " + str(size), {})
-            snippet = snippet.format("sizeof(Free) * " + str(size), {})
-
-        elif type == "b":
-            snippet = snippet.format(str(size), {})
-            snippet = snippet.format(str(size), {})
-
-        # Make sure all entries must be parsed correctly
-        else:
-            raise Exception(
-                f"Unable to parse buffer type for size: {size}, type: {type}"
-            )
-
-        if last:
-            snippet = snippet[:-1]
-        else:
-            snippet = snippet + "\n"
-        return snippet
-
-    @staticmethod
     def buffer_sizes(buffer: cli.BufferSize) -> CodeEntry:
-        placeholder = Placeholder.CONSTRUCTORS
+        placeholder = Placeholder.BUFFER
         snippet = ""
         type = buffer.type
-        for i, (function, size) in enumerate(buffer.buffer_sizes):
+        snippet = 'buffer("/mem_hook", 12, {}, 12 + {})'
 
-            # Since classes are instantiated with initializer list
-            # they are comma seperated. Last comma must however be removed
-            last = False
-            if i == len(buffer.buffer_sizes) - 1:
-                last = True
+        if type == "w":
+            snippet = snippet.format("sizeof(Trace) * " + str(buffer.size), {})
+            snippet = snippet.format("sizeof(Trace) * " + str(buffer.size), {})
 
-            if function == "free":
-                snippet += CodeEntryFactory.free_constructor(type, size, last)
-            elif function == "malloc":
-                snippet += CodeEntryFactory.malloc_constructor(type, size, last)
+        elif type == "b":
+            snippet = snippet.format(str(buffer.size), {})
+            snippet = snippet.format(str(buffer.size), {})
 
-            # Make sure all entries must be parsed correctly
-            else:
-                raise Exception(f"Unable to parse buffer size for function: {function}")
         return CodeEntry(placeholder, snippet)
 
     @staticmethod
     def backtrace_fast() -> CodeEntry:
-        snippet = "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 1);"
+        snippet = (
+            "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 2);"
+        )
         return CodeEntry(Placeholder.BACKTRACE_FAST, snippet)
 
     @staticmethod
