@@ -37,7 +37,6 @@ void simulate() {
         } else {
             free(ptr);
         }
-        keep_alive.push_back(malloc(get_random_size()));
     }
 
     for (void* const ptr : keep_alive) {

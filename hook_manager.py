@@ -82,7 +82,6 @@ class HookManager:
         hook_names = []
         for hook in self.hooks:
             try:
-                print(hook.func_name, hook.hook_name)
                 hook.func_addr = self._get_function_address(self.pid, hook.func_name)
                 hook.hook_addr = self._get_function_address(self.pid, hook.hook_name)
                 self._inject_function(self.pid, hook.plt_addr, hook.hook_addr)
