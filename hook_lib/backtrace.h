@@ -27,7 +27,7 @@ inline size_t walk_stack_fp(std::array<T, N>& buffer, std::size_t skip) {
 
     for (i = 0; fp && i < N; ++i) {
         if (i >= skip) {
-            buffer[i] = fp[1]; // The return address of the current frame
+            buffer[i - skip] = fp[1]; // The return address of the current frame
         }
         fp = reinterpret_cast<T*>(fp[0]); // Follow the frame pointer chain
 
@@ -36,6 +36,6 @@ inline size_t walk_stack_fp(std::array<T, N>& buffer, std::size_t skip) {
         }
     }
 
-    return i;
+    return i - skip;
 }
 
