@@ -6,6 +6,20 @@ from code_injector import CodeEntry, CodeEntryFactory, CodeInjector
 from hook_manager import HookManager
 
 
+FUNCTION_HOOKS = {
+    "_Znwm": "new_hook",
+    "_Znam": "array_new_hook",
+    "_ZnwmRKSt9nothrow_t": "non_throw_new_hook",
+    "_ZdlPv": "delete_hook",
+    "_ZdlPvm": "delete_size_hook",
+    "_ZdaPv": "array_delete_hook",
+    "_ZdaPvm": "array_delete_size_hook",
+    "_ZdlPvRKSt9nothrow_t": "non_throw_delete_hook",
+    "_ZnwmPv": "placement_new_hook",
+    "_ZnaPv": "array_placement_new_hook",
+}
+
+
 def compile_and_inject():
     code_entries: list[CodeEntry] = []
 
@@ -43,16 +57,13 @@ if __name__ == "__main__":
     hook_manager = HookManager(cli.pid)
 
     # Register hooks
-    hook_manager.register_hook("malloc")
-    hook_manager.register_hook("free")
-    hook_manager.register_hook("_Znwm", "new_hook")
-    hook_manager.register_hook("_Znam", "array_new_hook")
-    hook_manager.register_hook("_ZnwmRKSt9nothrow_t", "non_throw_new_hook")
-    hook_manager.register_hook("_ZdlPv", "delete_hook")
-    hook_manager.register_hook("_ZdlPvm", "delete_size_hook")
-    hook_manager.register_hook("_ZdaPv", "array_delete_hook")
-    hook_manager.register_hook("_ZdaPvm", "array_delete_size_hook")
-    hook_manager.register_hook("_ZdlPvRKSt9nothrow_t", "non_throw_delete_hook")
+    for func in cli.hook_functions:
+        hook_func = FUNCTION_HOOKS.get(func)
+        if hook_func is None:
+            hook_manager.register_hook(func)
+        else:
+            hook_manager.register_hook(func, hook_func)
+
     # hook_manager.register_hook("_ZnwmPv", "placement_new_hook")
     # hook_manager.register_hook("_ZnaPv", "array_placement_new_hook")
 
