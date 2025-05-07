@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <algorithm>
 
@@ -21,11 +22,12 @@
  * @warning Results may be unreliable if the program is heavily optimized or lacks frame pointers.
  */
 template <typename T, std::size_t N>
-inline size_t walk_stack_fp(std::array<T, N>& buffer, std::size_t skip) {
+inline size_t walk_stack_fp(std::array<T, N>& buffer, std::size_t count, std::size_t skip) {
+    assert(N >= count);
     T* fp = reinterpret_cast<T*>(__builtin_frame_address(0));
     std::size_t i;
 
-    for (i = 0; fp && i < N; ++i) {
+    for (i = 0; fp && i < count + skip; ++i) {
         if (i >= skip) {
             buffer[i - skip] = fp[1]; // The return address of the current frame
         }

@@ -75,15 +75,15 @@ class CodeEntryFactory:
         return CodeEntry(placeholder, snippet)
 
     @staticmethod
-    def backtrace_fast() -> CodeEntry:
+    def backtrace_fast(count: int) -> CodeEntry:
         snippet = (
-            "uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, 2);"
+            f"uint32_t backtrace_size = walk_stack_fp<void*, 20>(backtrace_buffer, {count}, 2);"
         )
         return CodeEntry(Placeholder.BACKTRACE_FAST, snippet)
 
     @staticmethod
-    def backtrace_glibc() -> CodeEntry:
-        snippet = "uint32_t backtrace_size = backtrace(backtrace_buffer.begin(), BUFFER_SIZE);"
+    def backtrace_glibc(count: int) -> CodeEntry:
+        snippet = f"uint32_t backtrace_size = backtrace(backtrace_buffer.begin(), {count});"
         return CodeEntry(Placeholder.BACKTRACE_GLIBC, snippet)
 
     @staticmethod

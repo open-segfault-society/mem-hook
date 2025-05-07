@@ -30,9 +30,10 @@ def compile_and_inject():
         code_entries.append(CodeEntryFactory.malloc_filter(cli.filter_size))
 
     if cli.backtrace_method == "fast":
-        code_entries.append(CodeEntryFactory.backtrace_fast())
+        print("fast")
+        code_entries.append(CodeEntryFactory.backtrace_fast(cli.max_backtraces))
     elif cli.backtrace_method == "glibc":
-        code_entries.append(CodeEntryFactory.backtrace_glibc())
+        code_entries.append(CodeEntryFactory.backtrace_glibc(cli.max_backtraces))
 
     code_entries.append(CodeEntryFactory.buffer_sizes(cli.buffer_sizes))
     

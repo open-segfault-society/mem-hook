@@ -98,24 +98,30 @@ parser.add_argument(
     help="Show an interactive graph showing the current allocation size over time.",
 )
 parser.add_argument(
-    "-w",
+    "-tw",
     "--time-window",
     type=int,
     default=32,
     help="Window of time (in seconds) displayed in the interactive graph."
 )
 parser.add_argument(
+    "-bm",
     "--backtrace-method",
-    default=["fast"],
-    nargs=1,
+    default="fast",
     choices=["fast", "glibc"],
     help="Choose how to obtain backtraces: 'fast' uses an internal stack walk, 'glibc' uses standard glibc unwinding.",
 )
 parser.add_argument(
+    "-mb",
+    "--max-backtraces",
+    type=int,
+    default=20,
+    help="Maximum number of backtraces to fetch per allocation or sample."
+)
+parser.add_argument(
     "-tm",
     "--timestamp-method",
-    default=["chrono"],
-    nargs=1,
+    default="chrono",
     choices=["chrono", "rdtscp", "None"],
     help="Method used to timestamp allocations. 'chrono' uses high-resolution clock, 'rdtscp' uses CPU instruction.",
 )
@@ -172,11 +178,12 @@ try:
     outputfile = args.output_file
     print_frequency = args.print_frequency
     read_frequency = args.read_frequency
-    backtrace_method = args.backtrace_method[0]
+    backtrace_method = args.backtrace_method
     log_file = args.output_file
-    timestamp_method = args.timestamp_method[0]
+    timestamp_method = args.timestamp_method
     graph = args.graph
     time_window = args.time_window
+    max_backtraces = args.max_backtraces
 
     if print_frequency < 0:
         print(f"Print frequency {print_frequency} is less than zero, changed to 5.")
