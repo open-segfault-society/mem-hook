@@ -80,3 +80,5 @@ if __name__ == "__main__":
                 shared_buffer.read(memtracker)
         except KeyboardInterrupt:
             memtracker.write_log_file()
+            memtracker.print_statistics_stop()
+

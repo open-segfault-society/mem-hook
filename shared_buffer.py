@@ -1,7 +1,7 @@
 import mmap
 import os
 import random
-import threading
+from threading import Timer
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -170,6 +170,8 @@ class Memtracker:
         self.all_allocations: list[Trace] = []
         self.all_frees: list[Trace] = []
 
+        self.print_timer: Timer | None = None
+
         self.malloc_overflow = 0
         self.free_overflow = 0
 
@@ -265,14 +267,13 @@ class Memtracker:
                 self.current_function_allocations[address].sizes -= trace.size
                 self.current_function_allocations[address].amount -= 1
 
-    def log_every_event(self, file):
+    def log_every_event(self, file) -> int:
         self.print_header("Every event", file)
 
         all_events: list[Trace] = self.all_frees + self.all_allocations
         all_events = sorted(all_events, key=lambda x: x.time)
 
         for event in all_events:
-
             print(
                 f"[{event.type.name}] size={event.size if event.size else '?'} at t={event.time}",
                 file=file,
@@ -281,14 +282,17 @@ class Memtracker:
                 f"    Backtrace: {' -> '.join(str(hex(b)) for b in event.backtraces)}\n",
                 file=file,
             )
+        return len(all_events)
 
     def write_log_file(self):
         if not self.log_file:
             return
 
         with open(self.log_file, "a") as f:
-            self.log_every_event(f)
-            self.print_statistics(10, f)
+            event_count = self.log_every_event(f)
+            self.print_statistics(0, file=f, loop=False)
+
+        print(f"All statistics have been written to '{self.log_file}'. Total records: {event_count}")
 
     def print_size(
         self,
@@ -322,8 +326,15 @@ class Memtracker:
         print(header.center(width), file=file)
         print("=" * width + "\n", file=file)
 
-    def print_statistics(self, delay: int, file=None):
-        threading.Timer(delay, self.print_statistics, [delay]).start()
+    def print_statistics_stop(self):
+        if self.print_timer:
+            self.print_timer.cancel()
+
+    def print_statistics(self, delay: int, file=None, loop=True):
+        if loop:
+            self.print_timer = Timer(delay, self.print_statistics, [delay])
+            self.print_timer.start()
+
         current_most_allocations = sorted(
             self.current_function_allocations.keys(),
             key=lambda k: self.current_function_allocations[k].amount,
@@ -354,6 +365,10 @@ class Memtracker:
             key=lambda k: self.total_function_frees[k].sizes,
             reverse=True,
         )
+
+        # Skip printing if there is no data
+        if not total_most_allocations and not total_most_frees:
+            return
 
         if self.malloc_overflow:
             print("MALLOC BUFFER OVERFLOW!")
@@ -401,7 +416,7 @@ class Memtracker:
         self.print_num(total_most_frees, self.total_function_frees, file)
         print(file=file)
 
-        print("Top Free Functions by Total Size:")
+        print("Top Free Functions by Total Size:", file=file)
         self.print_size(total_largest_frees, self.total_function_frees, file)
         print(file=file)
 
