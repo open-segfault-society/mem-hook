@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include <vector>
 
-size_t static const NUM_ALLOCS{1000};
+size_t static const NUM_ALLOCS{100000};
+size_t static const TRACE_DEPTH{6};
 
 // 16B, 32B, 64B, 128B, 256B, 512B, 1KB, 4KB, 64KB, 1MB
 size_t alloc_sizes[] = {16, 32, 64, 128, 256, 512, 1024, 4096, 65536};
@@ -24,6 +25,8 @@ double run_test(size_t alloc_size, size_t num_allocs) {
     auto const end{std::chrono::high_resolution_clock::now()};
     auto const duration{
         std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)};
+
+    std::this_thread::sleep_for(std::chrono::seconds(10));
 
     // Free the allocated memory
     for (void* ptr : allocations) {
@@ -58,7 +61,10 @@ void print_results(std::vector<double> const& results) {
     std::cout << "}" << std::endl;
 }
 
-int main() {
+void do_tests(size_t depth = 0) {
+    if (depth > 0) {
+        do_tests(depth - 1);
+    }
     std::cout << "Press Enter to start the tests..." << std::endl;
     std::cin.get();
 
@@ -70,11 +76,21 @@ int main() {
     // Run allocations before the tests to not get initialisation overhead
     run_test(256, 10000);
 
-    std::vector<double> results{};
-    std::transform(std::begin(alloc_sizes), std::end(alloc_sizes),
-                   std::back_inserter(results), [](size_t size) {
-                       return run_test(size, NUM_ALLOCS) / NUM_ALLOCS;
-                   });
-    print_results(results);
+    size_t const num_of_tests {sizeof(alloc_sizes) / sizeof(alloc_sizes[0])};
+    double results[num_of_tests];
+
+    for (size_t i = 0; i < num_of_tests; i++) {
+        results[i] = run_test(alloc_sizes[i], NUM_ALLOCS) / NUM_ALLOCS;
+    }
+
+    print_results(std::vector<double>(std::begin(results), std::end(results)));
     std::cin.get();
-};
+}
+int main (int argc, char *argv[]) {
+    if (argc >= 2) {
+        do_tests(std::stoi(argv[1]) - TRACE_DEPTH);
+    } else {
+        do_tests();
+    }
+    return 0;
+}
