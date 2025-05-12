@@ -26,8 +26,6 @@ double run_test(size_t alloc_size, size_t num_allocs) {
     auto const duration{
         std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)};
 
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-
     // Free the allocated memory
     for (void* ptr : allocations) {
         free(ptr);
@@ -87,8 +85,8 @@ void do_tests(size_t depth = 0) {
     std::cin.get();
 }
 int main (int argc, char *argv[]) {
-    if (argc >= 2) {
-        do_tests(std::stoi(argv[1]) - TRACE_DEPTH);
+    if (argc >= 2 && std::stoul(argv[1]) >= TRACE_DEPTH) {
+        do_tests(std::stoul(argv[1]) - TRACE_DEPTH);
     } else {
         do_tests();
     }
