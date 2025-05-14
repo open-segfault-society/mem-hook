@@ -1,6 +1,6 @@
 # Variables
 CXX = g++
-CXXFLAGS = -fPIC -shared -Wall
+CXXFLAGS = -fPIC -shared -Wall -O2
 LIB_NAME = hook.so
 SRC = $(wildcard *.cpp)  
 OBJ = $(SRC:.cpp=.o)
