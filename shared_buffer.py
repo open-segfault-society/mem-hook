@@ -1,19 +1,10 @@
 import mmap
 import os
-import random
 from threading import Timer
 import time
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import IntEnum
-from functools import partial
-
-import matplotlib
-import matplotlib.animation as animation
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-
-import cli
 
 # Constants
 HEAD_SIZE: int = 12
@@ -65,6 +56,10 @@ class Graph:
     WINDOW_HEIGHT = 600
 
     def __init__(self, time_window: int):
+        import matplotlib
+        import matplotlib.pyplot as plt
+        import matplotlib.ticker as ticker
+
         self.time_window = time_window
         matplotlib.use("TkAgg")  # Use backend that supports scrolling
         self.x_data, self.y_data = [], []
@@ -204,7 +199,7 @@ class Memtracker:
         self.total_allocations += 1
 
         if self.graph is not None:
-            alloc_time = round(trace.time - self.time_start, 2)
+            alloc_time = round(trace.time / 10**9 - self.time_start, 2)
             self.graph.add_event(
                 alloc_time, self.total_allocation_size, GraphType.ALLOCATION
             )
