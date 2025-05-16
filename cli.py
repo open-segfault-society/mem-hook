@@ -125,6 +125,13 @@ parser.add_argument(
     choices=["chrono", "rdtscp", "None"],
     help="Method used to timestamp allocations. 'chrono' uses high-resolution clock, 'rdtscp' uses CPU instruction.",
 )
+parser.add_argument(
+    "-ts",
+    "--thread-safe",
+    action="store_true",
+    help="Enable thread-safe mode (use locks to protect shared data)"
+)
+
 args = parser.parse_args()
 
 
@@ -184,6 +191,7 @@ try:
     graph = args.graph
     time_window = args.time_window
     max_backtraces = args.max_backtraces
+    thread_safe = args.thread_safe
 
     if print_frequency < 0:
         print(f"Print frequency {print_frequency} is less than zero, changed to 5.")

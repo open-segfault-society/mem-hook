@@ -15,6 +15,7 @@ class Placeholder(str, Enum):
     BACKTRACE_FAST = "<<<USE_BACKTRACE_FAST>>>"
     BACKTRACE_GLIBC = "<<<USE_BACKTRACE_GLIBC>>>"
     TIMESTAMP = "<<<TIMESTAMP>>>"
+    THREAD_SAFE = "<<<THREAD_SAFE>>>"
 
 @dataclass
 class CodeEntry:
@@ -101,6 +102,10 @@ class CodeEntryFactory:
         snippet = "auto now = std::chrono::high_resolution_clock::now();\nuint64_t timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();"
         return CodeEntry(Placeholder.TIMESTAMP, snippet)
 
+    @staticmethod
+    def thread_safe(safe: bool) -> CodeEntry:
+        snippet = "true" if safe else "false"
+        return CodeEntry(Placeholder.THREAD_SAFE, snippet)
 
 class CodeInjector:
     DIRECTORY: str = "hook_lib"
