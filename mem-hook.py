@@ -1,5 +1,4 @@
 import os
-
 import cli
 import shared_buffer
 from code_injector import CodeEntry, CodeEntryFactory, CodeInjector
@@ -42,6 +41,8 @@ def compile_and_inject():
         code_entries.append(CodeEntryFactory.timestamp_rdtscp())
     elif cli.timestamp_method == "chrono":
         code_entries.append(CodeEntryFactory.timestamp_chrono())
+
+    code_entries.append(CodeEntryFactory.thread_safe(cli.thread_safe))
 
     CodeInjector.inject(code_entries)
 

@@ -2,6 +2,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <mutex>
 #include <ostream>
 #include <sys/mman.h> // For shm_open, mmap
 #include <unistd.h>   // For close
@@ -60,6 +61,19 @@ SharedBuffer::~SharedBuffer() {
 }
 
 void SharedBuffer::write(Trace const& trace) {
+    if (<<<THREAD_SAFE>>>) {
+        write_safe(trace);
+    } else {
+        write_unsafe(trace);
+    }
+}
+
+void SharedBuffer::write_safe(Trace const& trace) {
+    std::lock_guard<std::mutex> lock{mtx};
+    write_unsafe(trace);
+}
+
+void SharedBuffer::write_unsafe(Trace const& trace) {
     uint32_t const next_tail =
         (*buffer.tail + 1) % (buffer.data_size / sizeof(struct Trace));
 

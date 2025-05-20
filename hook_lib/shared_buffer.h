@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <mutex>
 
 enum TraceType : uint32_t {
     MALLOC = 0,
@@ -54,9 +55,12 @@ class SharedBuffer {
   public:
     SharedBuffer();
     ~SharedBuffer();
+    std::mutex mtx {};
     void write(Trace const& trace);
 
   private:
     Buffer buffer;
+    void write_safe(Trace const& trace);
+    void write_unsafe(Trace const& trace);
 };
 
